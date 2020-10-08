@@ -27,11 +27,10 @@ type Remote struct {
 	Player          Player
 	Conn            *minecraft.Conn
 	Entities        *entity.Store
-	UniqueEntities *entity.Store
+	UniqueEntities  *entity.Store
 	Blocks          *blocks.Store
 	HandleStartGame chan bool
 	connected       bool
-
 }
 
 type ConnectConfig struct {
@@ -52,11 +51,11 @@ func Connect(address string, player Player, config ...ConnectConfig) (remote *Re
 		return
 	}
 	remote = &Remote{
-		Player:   player,
-		Entities: &entity.Store{},
-		Blocks:   &blocks.Store{},
+		Player:         player,
+		Entities:       &entity.Store{},
+		Blocks:         &blocks.Store{},
 		UniqueEntities: &entity.Store{},
-		Conn:     conn,
+		Conn:           conn,
 	}
 	if len(config) > 0 {
 		if config[0].HandleStartgame {

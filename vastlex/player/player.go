@@ -16,24 +16,24 @@ import (
 var _ remote.Player = &Player{} // check if it implements remote.Player
 
 type Player struct {
-	currentId *atomic.Int64
-	conn      *minecraft.Conn
-	remote    *remote.Remote
-	entities  *entity.Store
+	currentId      *atomic.Int64
+	conn           *minecraft.Conn
+	remote         *remote.Remote
+	entities       *entity.Store
 	uniqueEntities *entity.Store
-	blocks    *blocks.Store
-	dimension *atomic.Int32
-	sending   bool
+	blocks         *blocks.Store
+	dimension      *atomic.Int32
+	sending        bool
 }
 
 func NewPlayer(conn *minecraft.Conn) *Player {
 	p := &Player{
-		currentId: atomic.NewInt64(2),
-		conn:      conn,
-		entities:  &entity.Store{},
+		currentId:      atomic.NewInt64(2),
+		conn:           conn,
+		entities:       &entity.Store{},
 		uniqueEntities: &entity.Store{},
-		blocks:    &blocks.Store{},
-		dimension: atomic.NewInt32(0),
+		blocks:         &blocks.Store{},
+		dimension:      atomic.NewInt32(0),
 	}
 	p.handlePackets()
 	return p

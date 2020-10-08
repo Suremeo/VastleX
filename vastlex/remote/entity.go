@@ -5,8 +5,7 @@ import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 func (remote *Remote) clearEntities() {
 	remote.Player.UniqueEntities().Range(func(key, value interface{}) bool {
 		uid := value.(int64)
-		if uid !=  1 {
-			println("Removing ", uid)
+		if uid != 1 {
 			_ = remote.Player.Conn().WritePacket(&packet.RemoveActor{EntityUniqueID: uid})
 		}
 		return true
