@@ -20,6 +20,7 @@ type Player struct {
 	conn      *minecraft.Conn
 	remote    *remote.Remote
 	entities  *entity.Store
+	uniqueEntities *entity.Store
 	blocks    *blocks.Store
 	dimension *atomic.Int32
 	sending   bool
@@ -30,6 +31,7 @@ func NewPlayer(conn *minecraft.Conn) *Player {
 		currentId: atomic.NewInt64(2),
 		conn:      conn,
 		entities:  &entity.Store{},
+		uniqueEntities: &entity.Store{},
 		blocks:    &blocks.Store{},
 		dimension: atomic.NewInt32(0),
 	}
@@ -118,7 +120,7 @@ func (p *Player) handlePackets() {
 									_ = p.conn.WritePacket(&packet.Text{Message: text.Green()("Successfully transfered you")})
 								}
 							} else {
-								_ = p.conn.WritePacket(&packet.Text{Message: text.Red()("You didn't00. provide a server address to be transfered to")})
+								_ = p.conn.WritePacket(&packet.Text{Message: text.Red()("You didn't provide a server address to be transfered to")})
 							}
 							continue // we shouldn't let pmmp know it was sent
 						}
@@ -144,6 +146,10 @@ func (p *Player) Conn() *minecraft.Conn {
 
 func (p *Player) Entities() *entity.Store {
 	return p.entities
+}
+
+func (p *Player) UniqueEntities() *entity.Store {
+	return p.uniqueEntities
 }
 
 func (p *Player) Blocks() *blocks.Store {

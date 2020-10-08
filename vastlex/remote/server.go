@@ -15,6 +15,7 @@ type Player interface {
 	Conn() *minecraft.Conn
 	CurrentId() *atomic.Int64
 	Entities() *entity.Store
+	UniqueEntities() *entity.Store
 	Blocks() *blocks.Store
 	RemoteDisconnect(error)
 	Remote() *Remote
@@ -26,9 +27,11 @@ type Remote struct {
 	Player          Player
 	Conn            *minecraft.Conn
 	Entities        *entity.Store
+	UniqueEntities *entity.Store
 	Blocks          *blocks.Store
 	HandleStartGame chan bool
 	connected       bool
+
 }
 
 type ConnectConfig struct {
@@ -52,6 +55,7 @@ func Connect(address string, player Player, config ...ConnectConfig) (remote *Re
 		Player:   player,
 		Entities: &entity.Store{},
 		Blocks:   &blocks.Store{},
+		UniqueEntities: &entity.Store{},
 		Conn:     conn,
 	}
 	if len(config) > 0 {
@@ -92,11 +96,22 @@ func Connect(address string, player Player, config ...ConnectConfig) (remote *Re
 		Yaw:             remote.Conn.GameData().Yaw,
 		HeadYaw:         remote.Conn.GameData().Yaw,
 	})
+
+	remote.clearEntities()
+
+	player.Entities().Set(1, int64(conn.GameData().EntityRuntimeID))
+	remote.Entities.Set(int64(conn.GameData().EntityRuntimeID), 1)
+
+	player.UniqueEntities().Set(1, int64(conn.GameData().EntityUniqueID))
+	remote.UniqueEntities.Set(conn.GameData().EntityUniqueID, 1)
+
 	remote.handlePackets()
 	go func() {
 		err = conn.DoSpawn()
 		if err != nil {
-			player.RemoteDisconnect(err)
+			if player.Remote() == remote {
+				player.RemoteDisconnect(err)
+			}
 			_ = conn.Close()
 		} else {
 			// Spawn is done so we can clear the previous title
@@ -109,19 +124,19 @@ func Connect(address string, player Player, config ...ConnectConfig) (remote *Re
 			}
 		}
 	}()
-	player.Entities().Set(1, int64(conn.GameData().EntityRuntimeID))
-	remote.Entities.Set(int64(conn.GameData().EntityRuntimeID), 1)
 	remote.connected = true
 	return
 }
 
-func (server *Remote) handlePackets() {
+func (remote *Remote) handlePackets() {
 	go func() {
 		for {
-			pk, err := server.Conn.ReadPacket()
+			pk, err := remote.Conn.ReadPacket()
 			if err != nil {
 				if err.Error() == "error reading packet: connection closed" {
-					server.Player.RemoteDisconnect(err)
+					if remote.Player.Remote() == remote {
+						remote.Player.RemoteDisconnect(err)
+					}
 					break
 				} else {
 					println("Error reading packet from the server: " + err.Error())
@@ -130,37 +145,42 @@ func (server *Remote) handlePackets() {
 			}
 			switch pk := pk.(type) {
 			case *packet.AddActor:
-				newId := server.Player.CurrentId().Inc()
-				server.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
-				server.Entities.Set(int64(pk.EntityRuntimeID), newId)
+				newId := remote.Player.CurrentId().Inc()
+				remote.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
+				remote.Entities.Set(int64(pk.EntityRuntimeID), newId)
+				remote.UniqueEntities.Set(pk.EntityUniqueID, int64(pk.EntityRuntimeID))
+				remote.Player.UniqueEntities().Set(int64(pk.EntityRuntimeID), pk.EntityUniqueID)
 				break
 			case *packet.AddItemActor:
-				newId := server.Player.CurrentId().Inc()
-				server.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
-				server.Entities.Set(int64(pk.EntityRuntimeID), newId)
-				break
-			case *packet.AddEntity:
-				newId := server.Player.CurrentId().Inc()
-				server.Player.Entities().Set(newId, int64(pk.EntityNetworkID))
-				server.Entities.Set(int64(pk.EntityNetworkID), newId)
+				newId := remote.Player.CurrentId().Inc()
+				remote.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
+				remote.Entities.Set(int64(pk.EntityRuntimeID), newId)
+				remote.UniqueEntities.Set(pk.EntityUniqueID, int64(pk.EntityRuntimeID))
+				remote.Player.UniqueEntities().Set(int64(pk.EntityRuntimeID), pk.EntityUniqueID)
 				break
 			case *packet.AddPlayer:
 				if pk.EntityRuntimeID != 1 {
-					newId := server.Player.CurrentId().Inc()
-					server.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
-					server.Entities.Set(int64(pk.EntityRuntimeID), newId)
+					newId := remote.Player.CurrentId().Inc()
+					remote.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
+					remote.Entities.Set(int64(pk.EntityRuntimeID), newId)
+					remote.UniqueEntities.Set(pk.EntityUniqueID, int64(pk.EntityRuntimeID))
+					remote.Player.UniqueEntities().Set(int64(pk.EntityRuntimeID), pk.EntityUniqueID)
 				}
 				break
 			case *packet.RemoveActor:
-				server.Player.Entities().Delete(int64(pk.EntityUniqueID))
-				server.Entities.Delete(int64(pk.EntityUniqueID))
-				break
-			case *packet.RemoveEntity:
-				server.Player.Entities().Delete(int64(pk.EntityNetworkID))
-				server.Entities.Delete(int64(pk.EntityNetworkID))
+				_ = remote.Player.Conn().WritePacket(&packet.RemoveActor{EntityUniqueID: remote.Player.UniqueEntities().Get(remote.UniqueEntities.Get(pk.EntityUniqueID))})
+				rid := remote.UniqueEntities.Get(pk.EntityUniqueID)
+				eid := remote.Entities.Get(rid)
+				remote.Player.Entities().Delete(eid)
+				remote.Entities.Delete(rid)
+				remote.UniqueEntities.Delete(pk.EntityUniqueID)
+				remote.Player.UniqueEntities().Delete(rid)
+				continue
+			case *packet.Disconnect:
+				println("Disconnected: " + pk.Message)
 				break
 			case *packet.ChangeDimension:
-				server.Player.Dimension().Store(pk.Dimension)
+				remote.Player.Dimension().Store(pk.Dimension)
 				break
 
 				// StartGame packets
@@ -190,18 +210,18 @@ func (server *Remote) handlePackets() {
 					}
 					err := json.Unmarshal(pk.EventData, &send)
 					if err != nil {
-						_ = server.Player.Conn().WritePacket(&packet.ScriptCustomEvent{
+						_ = remote.Player.Conn().WritePacket(&packet.ScriptCustomEvent{
 							EventName: "vastlex:error",
 							EventData: []byte(err.Error()),
 						})
 					} else {
-						err := server.Player.Send(send.Address, ConnectConfig{
+						err := remote.Player.Send(send.Address, ConnectConfig{
 							Message:     send.Message,
 							HideMessage: send.HideMessage,
 						})
 						if err != nil {
-							if server.Conn != nil {
-								_ = server.Conn.WritePacket(&packet.ScriptCustomEvent{
+							if remote.Conn != nil {
+								_ = remote.Conn.WritePacket(&packet.ScriptCustomEvent{
 									EventName: "vastlex:error",
 									EventData: []byte(err.Error()),
 								})
@@ -212,12 +232,12 @@ func (server *Remote) handlePackets() {
 				}
 				break
 			}
-			if !server.connected {
+			if !remote.connected {
 				continue
 			}
-			blocks.TranslatePacket(pk, server.Player.Blocks(), server.Blocks)
-			if entity.TranslatePacket(pk, server.Entities) {
-				_ = server.Player.Conn().WritePacket(pk)
+			blocks.TranslatePacket(pk, remote.Player.Blocks(), remote.Blocks)
+			if entity.TranslatePacket(pk, remote.Entities) {
+				_ = remote.Player.Conn().WritePacket(pk)
 			}
 		}
 	}()

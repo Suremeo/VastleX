@@ -8,14 +8,22 @@ import (
 
 func TranslatePacket(pk packet.Packet, store *Store) bool {
 	switch pk := pk.(type) {
-	case *packet.SetActorLink:
-		if store.Get(int64(pk.EntityLink.RiddenEntityUniqueID)) != 0 {
-			pk.EntityLink.RiddenEntityUniqueID = store.Get(int64(pk.EntityLink.RiddenEntityUniqueID))
-		}
-		if store.Get(int64(pk.EntityLink.RiderEntityUniqueID)) != 0 {
-			pk.EntityLink.RiderEntityUniqueID = store.Get(int64(pk.EntityLink.RiderEntityUniqueID))
-		}
-		break
+	//case *packet.BossEvent:
+	//	pk.PlayerUniqueID = store.Get(pk.PlayerUniqueID)
+	//	pk.BossEntityUniqueID= store.Get(pk.BossEntityUniqueID)
+	//	break
+	//case *packet.Camera:
+	//	pk.CameraEntityUniqueID = store.Get(pk.CameraEntityUniqueID)
+	//	pk.TargetPlayerUniqueID = store.Get(pk.TargetPlayerUniqueID)
+	//	break
+	//case *packet.SetActorLink:
+	//	if store.Get(int64(pk.EntityLink.RiddenEntityUniqueID)) != 0 {
+	//		pk.EntityLink.RiddenEntityUniqueID = store.Get(pk.EntityLink.RiddenEntityUniqueID)
+	//	}
+	//	if store.Get(int64(pk.EntityLink.RiderEntityUniqueID)) != 0 {
+	//		pk.EntityLink.RiderEntityUniqueID = store.Get(pk.EntityLink.RiderEntityUniqueID)
+	//	}
+	//	break
 	case *packet.CommandBlockUpdate:
 		if store.Get(int64(pk.MinecartEntityRuntimeID)) != 0 {
 			pk.MinecartEntityRuntimeID = uint64(store.Get(int64(pk.MinecartEntityRuntimeID)))

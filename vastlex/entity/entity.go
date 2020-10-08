@@ -1,6 +1,8 @@
 package entity
 
-import "sync"
+import (
+	"sync"
+)
 
 type Store struct {
 	entities sync.Map
