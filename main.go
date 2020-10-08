@@ -29,10 +29,10 @@ func main() {
 		err = p.Send("127.0.0.1:1002")
 		if err != nil {
 			_ = p.Conn().WritePacket(&packet.Disconnect{Message: text.Red()("Unknown error while connecting you to a lobby!")})
-			println("Error while connecting " + p.Conn().IdentityData().DisplayName + "(" + p.Conn().IdentityData().XUID + ") to a server: " + err.Error())
+			println("Error while connecting " + p.Conn().IdentityData().DisplayName + " (" + p.Conn().IdentityData().XUID + ") to a server: " + err.Error())
 			continue
 		} else {
-			println(p.Conn().IdentityData().DisplayName + "(" + p.Conn().IdentityData().XUID + ") connected to the proxy and has been placed into a server")
+			println(p.Conn().IdentityData().DisplayName + " (" + p.Conn().IdentityData().XUID + ") connected to the proxy and has been placed into a server")
 		}
 	}
 }
