@@ -8,10 +8,15 @@ import (
 	"github.com/VastleLLC/VastleX/vastlex/server"
 	"github.com/VastleLLC/VastleX/vastlex/session"
 	"github.com/sandertv/gophertunnel/minecraft"
+	"github.com/sandertv/gophertunnel/minecraft/text"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 // VastleX is the main structure for the proxy.
-var VastleX = &Structure{
+var VastleX Proxy = vastlex
+
+var vastlex = &Structure{
 	listener: &minecraft.Listener{
 		ErrorLog:               nil,
 		AuthenticationDisabled: !config.Config.Minecraft.Auth,
@@ -34,23 +39,32 @@ type Structure struct {
 
 // Start starts the proxy.
 func Start() (err error) {
-	err = VastleX.listener.Listen("raknet", fmt.Sprintf("%v:%v", VastleX.info.Host, VastleX.info.Port))
+	if config.Config.Debug.Profiling {
+		go func() {
+			log.FatalError("Error starting profiling server", http.ListenAndServe(config.Config.Listener.Host + ":6060", nil))
+		}()
+	}
+	err = vastlex.listener.Listen("raknet", fmt.Sprintf("%v:%v", vastlex.info.Host, vastlex.info.Port))
 	if err != nil {
 		return err
 	}
-	log.Info().Str("host", VastleX.info.Host).Int("port", VastleX.info.Port).Msg("VastleX is listening for players")
+	log.Info().Str("host", vastlex.info.Host).Int("port", vastlex.info.Port).Str("checksum", log.Checksum).Msg("VastleX is listening for players")
 
 	for {
-		conn, err := VastleX.listener.Accept()
+		conn, err := vastlex.listener.Accept()
 		if err != nil {
 			return err
 		}
 		go func() {
-			VastleX.players[conn.(*minecraft.Conn).IdentityData().DisplayName] = session.New(conn.(*minecraft.Conn))
+			vastlex.players[conn.(*minecraft.Conn).IdentityData().DisplayName] = session.New(conn.(*minecraft.Conn))
 			log.Info().Str("username", conn.(*minecraft.Conn).IdentityData().DisplayName).Msg("Player connected")
 			if config.Config.Lobby.Enabled {
-				err = VastleX.players[conn.(*minecraft.Conn).IdentityData().DisplayName].Send(server.Info{})
+				err = vastlex.players[conn.(*minecraft.Conn).IdentityData().DisplayName].Send(server.Info{
+					Host: config.Config.Lobby.Host,
+					Port: config.Config.Lobby.Port,
+				})
 				if err != nil {
+					vastlex.players[conn.(*minecraft.Conn).IdentityData().DisplayName].Kick(text.Red()("We had an error connecting you to a lobby"))
 					log.Err().Str("username", conn.(*minecraft.Conn).IdentityData().DisplayName).Err(err).Msg("Player failed to connect to lobby")
 				}
 			}

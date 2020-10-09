@@ -5,6 +5,7 @@ import (
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
 
+// TranslatePacket translates the block runtime ids for the packet.
 func TranslatePacket(pk packet.Packet, store1, store2 *Store) {
 	switch pk := pk.(type) {
 	case *packet.InventoryTransaction:

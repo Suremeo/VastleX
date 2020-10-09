@@ -1,10 +1,13 @@
 package server
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/VastleLLC/VastleX/config"
+	"github.com/VastleLLC/VastleX/log"
 	"github.com/VastleLLC/VastleX/vastlex/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/entity"
+	"github.com/VastleLLC/VastleX/vastlex/packets"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -12,6 +15,7 @@ import (
 	"go.uber.org/atomic"
 )
 
+// A player connected to a server.
 type Player interface {
 	Conn() *minecraft.Conn
 	CurrentId() *atomic.Int64
@@ -19,9 +23,10 @@ type Player interface {
 	UniqueEntities() *entity.Store
 	Blocks() *blocks.Store
 	RemoteDisconnect(error)
-	Remote() *Remote
+	Server() Server
 	Dimension() *atomic.Int32
 	Send(info Info, config ...ConnectConfig) error
+	Kick(...string)
 }
 
 type Server interface {
@@ -36,7 +41,6 @@ type Remote struct {
 	Blocks          *blocks.Store
 	HandleStartGame chan bool
 	serverInfo      Info
-	connected       bool
 }
 
 func (remote *Remote) Info() Info {
@@ -54,10 +58,10 @@ type Info struct {
 	Port int
 }
 
-func Connect(info Info, player Player, config ...ConnectConfig) (remote *Remote, err error) {
+func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *Remote, err error) {
 	clientData := player.Conn().ClientData()
-	clientData.ThirdPartyName = "VaStLeXiScOoL"                      // ThirdPartyName can be used as a sort of shared secret (Its not implemented yet which is why it can't be set from outside this file)
-	clientData.PlatformOfflineID = player.Conn().IdentityData().XUID // Pmmp has an issue getting the XUID with auth disabled so XUID is here to solve the issue.
+	clientData.ThirdPartyName = config.Config.Proxy.Secret          // ThirdPartyName is used as a placeholder for the connection secret
+	clientData.PlatformOnlineID = player.Conn().IdentityData().XUID // Pmmp has an issue getting the XUID with auth disabled so the PlatformOnlineID is set to the players XUID to solve the issue.
 	conn, err := minecraft.Dialer{
 		ClientData:   clientData,
 		IdentityData: player.Conn().IdentityData(),
@@ -72,15 +76,17 @@ func Connect(info Info, player Player, config ...ConnectConfig) (remote *Remote,
 		UniqueEntities: &entity.Store{},
 		Conn:           conn,
 	}
-	if len(config) > 0 {
-		if config[0].HandleStartgame {
+	if len(connectConfig) > 0 {
+		if connectConfig[0].HandleStartgame {
 			remote.HandleStartGame = make(chan bool, 1)
+		} else {
+			player.Blocks().Import(conn.GameData().Blocks)
 		}
 	}
-	if !config[0].HideMessage {
+	if !connectConfig[0].HideMessage {
 		msg := text.Bold()(text.Green()("Teleporting..."))
-		if config[0].Message != "" {
-			msg = config[0].Message
+		if connectConfig[0].Message != "" {
+			msg = connectConfig[0].Message
 		}
 		_ = player.Conn().WritePacket(&packet.SetTitle{
 			ActionType: packet.TitleActionSetTitle,
@@ -88,9 +94,6 @@ func Connect(info Info, player Player, config ...ConnectConfig) (remote *Remote,
 		})
 	}
 	remote.Blocks.Import(conn.GameData().Blocks)
-	if player.Remote() == nil {
-		player.Blocks().Import(conn.GameData().Blocks)
-	}
 
 	// Get the session up to date with the new things from GameData
 
@@ -123,11 +126,12 @@ func Connect(info Info, player Player, config ...ConnectConfig) (remote *Remote,
 	go func() {
 		err = conn.DoSpawn()
 		if err != nil {
-			if player.Remote() == remote {
+			if player.Server() == remote {
 				player.RemoteDisconnect(err)
 			}
 			_ = conn.Close()
 		} else {
+			log.Debug().Str("host", info.Host).Int("port", info.Port).Str("username", player.Conn().IdentityData().DisplayName).Msg("Player spawned in")
 			// Spawn is done so we can clear the previous title
 			_ = player.Conn().WritePacket(&packet.SetTitle{
 				ActionType: packet.TitleActionSetTitle,
@@ -138,7 +142,6 @@ func Connect(info Info, player Player, config ...ConnectConfig) (remote *Remote,
 			}
 		}
 	}()
-	remote.connected = true
 	return
 }
 
@@ -148,7 +151,7 @@ func (remote *Remote) handlePackets() {
 			pk, err := remote.Conn.ReadPacket()
 			if err != nil {
 				if err.Error() == "error reading packet: connection closed" {
-					if remote.Player.Remote() == remote {
+					if remote.Player.Server() == remote {
 						remote.Player.RemoteDisconnect(err)
 					}
 					break
@@ -191,63 +194,37 @@ func (remote *Remote) handlePackets() {
 				remote.Player.UniqueEntities().Delete(rid)
 				continue
 			case *packet.Disconnect:
-				println("Disconnected: " + pk.Message)
+				remote.Player.RemoteDisconnect(errors.New(pk.Message))
 				break
 			case *packet.ChangeDimension:
 				remote.Player.Dimension().Store(pk.Dimension)
 				break
-
-				// StartGame packets
-			//case *packet.ResourcePacksInfo:
-			//	if server.HandleStartGame != nil {
-			//		_ = server.Conn.WritePacket(&packet.ResourcePackClientResponse{
-			//			Response: packet.PackResponseAllPacksDownloaded,
-			//		})
-			//		continue
-			//	}
-			//	break
-			//case *packet.ResourcePackStack:
-			//	if server.HandleStartGame != nil {
-			//		_ = server.Conn.WritePacket(&packet.ResourcePackClientResponse{
-			//			Response: packet.PackResponseCompleted,
-			//		})
-			//		continue
-			//	}
-			//	break
-			case *packet.ScriptCustomEvent: // Custom packet for transferring
-				switch pk.EventName {
-				case "vastlex:transfer":
-					var send struct {
-						Address     string
-						Message     string
-						HideMessage bool
-					}
-					err := json.Unmarshal(pk.EventData, &send)
-					if err != nil {
-						_ = remote.Player.Conn().WritePacket(&packet.ScriptCustomEvent{
-							EventName: "vastlex:error",
-							EventData: []byte(err.Error()),
-						})
-					} else {
-						err := remote.Player.Send(remote.serverInfo, ConnectConfig{
-							Message:     send.Message,
-							HideMessage: send.HideMessage,
-						})
-						if err != nil {
-							if remote.Conn != nil {
-								_ = remote.Conn.WritePacket(&packet.ScriptCustomEvent{
-									EventName: "vastlex:error",
-									EventData: []byte(err.Error()),
-								})
-							}
-						}
-					}
-					break
+			case *packet.ResourcePacksInfo:
+				if remote.HandleStartGame != nil {
+					_ = remote.Conn.WritePacket(&packet.ResourcePackClientResponse{
+						Response: packet.PackResponseAllPacksDownloaded,
+					})
+					continue
 				}
 				break
-			}
-			if !remote.connected {
-				continue
+			case *packet.ResourcePackStack:
+				if remote.HandleStartGame != nil {
+					_ = remote.Conn.WritePacket(&packet.ResourcePackClientResponse{
+						Response: packet.PackResponseCompleted,
+					})
+					continue
+				}
+				break
+			case *packets.VastleXTransfer:
+				err = remote.Player.Send(Info{
+					Host: pk.Host,
+					Port: int(pk.Port),
+				}, ConnectConfig{
+					Message:     pk.Message,
+					HideMessage: pk.HideMessage,
+				})
+
+				break
 			}
 			blocks.TranslatePacket(pk, remote.Player.Blocks(), remote.Blocks)
 			if entity.TranslatePacket(pk, remote.Entities) {

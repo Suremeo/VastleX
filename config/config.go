@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"github.com/VastleLLC/VastleX/log"
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft/text"
@@ -22,13 +24,22 @@ type Structure struct {
 		ShowVersion bool
 		MaxPlayers  int
 	}
+	Fallback struct {
+		Enabled bool
+		Host    string
+		Port    int
+	}
 	Lobby struct {
 		Enabled bool
 		Host    string
 		Port    int
 	}
-	Logging struct {
-		Debug bool
+	Debug struct {
+		Logging bool
+		Profiling bool
+	}
+	Proxy struct {
+		Secret string
 	}
 }
 
@@ -40,6 +51,7 @@ func LoadConfig() (config Structure) {
 		err = createDefaultConfig()
 		log.FatalError("Failed to create default configuration", err)
 	}
+	log.Debugging = config.Debug.Logging
 	return config
 }
 
@@ -62,7 +74,7 @@ func createDefaultConfig() error {
 	return ioutil.WriteFile("./config.toml", dat, os.ModePerm)
 }
 
-// DefaultConfig returns the default configuration for the proxy.
+// DefaultConfig returns the default configuration for the proxy & generates a unique secret.
 func DefaultConfig() Structure {
 	return Structure{
 		Listener: struct {
@@ -83,6 +95,15 @@ func DefaultConfig() Structure {
 			ShowVersion: false,
 			MaxPlayers:  0,
 		},
+		Fallback: struct {
+			Enabled bool
+			Host    string
+			Port    int
+		}{
+			Enabled: true,
+			Host:    "127.0.0.1",
+			Port:    19133,
+		},
 		Lobby: struct {
 			Enabled bool
 			Host    string
@@ -92,8 +113,19 @@ func DefaultConfig() Structure {
 			Host:    "127.0.0.1",
 			Port:    19133,
 		},
-		Logging: struct {
-			Debug bool
+		Debug: struct {
+			Logging bool
+			Profiling bool
 		}{},
+		Proxy: struct {
+			Secret string
+		}{
+			Secret: func() string { // Generate a cryptographically secure secret for the configuration.
+				b := make([]byte, 32)
+				_, err := rand.Read(b)
+				log.FatalError("Failed to generate default secret for the configuration", err)
+				return hex.EncodeToString(b)
+			}(),
+		},
 	}
 }

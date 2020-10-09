@@ -2,13 +2,14 @@ package session
 
 import (
 	"errors"
+	"github.com/VastleLLC/VastleX/config"
+	"github.com/VastleLLC/VastleX/log"
 	"github.com/VastleLLC/VastleX/vastlex/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/entity"
 	"github.com/VastleLLC/VastleX/vastlex/server"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
-	"github.com/sandertv/gophertunnel/minecraft/text"
 	"go.uber.org/atomic"
 	"strings"
 	"time"
@@ -53,13 +54,14 @@ func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 	if p.remote != nil {
 		conf.HandleStartgame = true
 	}
-	server, err := server.Connect(info, p, conf)
+	remote, err := server.Connect(info, p, conf)
 	if err != nil {
 		return err
 	}
 	if p.remote == nil {
-		// first server (let client handle startgame etc)
-		gameData := server.Conn.GameData()
+		p.remote = remote
+		// first remote (let client handle startgame etc)
+		gameData := remote.Conn.GameData()
 		gameData.EntityUniqueID = 1
 		gameData.EntityRuntimeID = 1
 		err = p.conn.StartGame(gameData)
@@ -73,15 +75,15 @@ func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 			ActionPermissions: uint32(packet.ActionPermissionBuildAndMine | packet.ActionPermissionDoorsAndSwitched | packet.ActionPermissionOpenContainers | packet.ActionPermissionAttackPlayers | packet.ActionPermissionAttackMobs),
 		})
 	} else {
+		p.remote = remote
 		_ = p.remote.Conn.Close()
 		select {
 		case <-time.After(10 * time.Second):
 			return errors.New("startgame timed out")
-		case <-server.HandleStartGame:
+		case <-remote.HandleStartGame:
 			// connected
 		}
 	}
-	p.remote = server
 	return err
 }
 
@@ -91,13 +93,12 @@ func (p *Player) handlePackets() {
 			pk, err := p.conn.ReadPacket()
 			if err != nil {
 				if err.Error() == "error reading packet: connection closed" {
-					// Connection closed rip
 					if p.remote != nil {
 						if p.remote.Conn != nil {
 							_ = p.remote.Conn.Close()
 						}
 					}
-					println("Connection closed")
+					p.Kick()
 					break
 				} else {
 					println(err.Error())
@@ -107,26 +108,6 @@ func (p *Player) handlePackets() {
 			if p.remote != nil {
 				if p.remote.Conn != nil {
 					// server is connected
-					switch pk := pk.(type) {
-					case *packet.CommandRequest:
-						strarr := strings.Split(strings.TrimPrefix(pk.CommandLine, "/"), " ")
-						cmd, args := strarr[0], strarr[1:]
-						switch cmd {
-						case "send":
-							if len(args) > 0 {
-								err := p.Send(p.remote.Info(), server.ConnectConfig{HideMessage: true})
-								if err != nil {
-									_ = p.conn.WritePacket(&packet.Text{Message: text.Red()("Error transfering you: " + err.Error())})
-								} else {
-									_ = p.conn.WritePacket(&packet.Text{Message: text.Green()("Successfully transfered you")})
-								}
-							} else {
-								_ = p.conn.WritePacket(&packet.Text{Message: text.Red()("You didn't provide a server address to be transfered to")})
-							}
-							continue // we shouldn't let pmmp know it was sent
-						}
-						break
-					}
 					blocks.TranslatePacket(pk, p.blocks, p.remote.Blocks)
 					if entity.TranslatePacket(pk, p.entities) {
 						_ = p.remote.Conn.WritePacket(pk)
@@ -157,10 +138,6 @@ func (p *Player) Blocks() *blocks.Store {
 	return p.blocks
 }
 
-func (p *Player) Remote() *server.Remote {
-	return p.remote
-}
-
 func (p *Player) Dimension() *atomic.Int32 {
 	return p.dimension
 }
@@ -183,7 +160,25 @@ func (p *Player) WritePacket(packet packet.Packet) error {
 
 func (p *Player) RemoteDisconnect(err error) {
 	if !p.sending {
-		p.Kick("Unknown error occured in your connection", err.Error())
+		log.Debug().Str("username", p.Identity().DisplayName).Err(err).Msg("Player disconnected from server")
+		if config.Config.Fallback.Enabled {
+			if p.remote.Info().Host == config.Config.Fallback.Host && p.remote.Info().Port == config.Config.Fallback.Port {
+				// They got disconnected from the fallback server so we shouldn't send them to it again.
+				p.remote = nil
+				p.Kick("Unknown error occured in your connection", err.Error())
+			}
+			err = p.Send(server.Info{
+				Host: config.Config.Fallback.Host,
+				Port: config.Config.Fallback.Port,
+			})
+			if err != nil {
+				p.remote = nil
+				p.Kick("Unknown error occured in your connection", err.Error())
+			}
+		} else {
+			p.remote = nil
+			p.Kick("Unknown error occured in your connection", err.Error())
+		}
 	}
 }
 

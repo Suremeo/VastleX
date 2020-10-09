@@ -1,18 +1,27 @@
 
-[Listener]
+[Listener] # Listener is the settings for the VastleX listener.
   Host = "0.0.0.0"
   Port = 19132
 
-[Lobby]
+[Fallback] # Fallback is the server they get transferred to when they get kicked from the server they were in (If enabled is set to false they get kicked).
   Enabled = true
   Host = "127.0.0.1"
-  Port = 1001
+  Port = 19133
 
-[Logging]
-  Debug = false
+[Lobby] # Lobby is the first server they get sent to when they join, if it is disabled they will not have a server and will eventually timeout unless you transfer them via your plugin.
+  Enabled = true
+  Host = "127.0.0.1"
+  Port = 19133
 
-[Minecraft]
+[Debug] # Debug contains features designed for debugging the proxy.
+  Logging = false # If set to true debug messages will be sent to the console.
+  Profiling = false # Enables a profiling http server on port 6060 (See https://golang.org/pkg/net/http/pprof/)
+
+[Minecraft] # Minecraft contains settings related to the Minecraft aspect of the proxy.
   Auth = true
   MaxPlayers = 0
   Motd = "§l§cVastle§r§r§l§fX§r§r"
   ShowVersion = false
+
+[Security] # Proxy contains settings related to the security of the proxy.
+  Secret = "8a589b03bef5fad612ea271d909a6f911fbb8dd39547308ba9b2233ec216e00b" # Secret is the shared secret between the Proxy and the Server to ensure unauthorized connections are coming from the proxy. (If you get the config from github please change the default secret)
