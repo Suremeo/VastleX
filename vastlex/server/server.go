@@ -1,7 +1,8 @@
-package remote
+package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/VastleLLC/VastleX/vastlex/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/entity"
 	"github.com/go-gl/mathgl/mgl32"
@@ -20,7 +21,11 @@ type Player interface {
 	RemoteDisconnect(error)
 	Remote() *Remote
 	Dimension() *atomic.Int32
-	Send(address string, config ...ConnectConfig) error
+	Send(info Info, config ...ConnectConfig) error
+}
+
+type Server interface {
+	Info() Info
 }
 
 type Remote struct {
@@ -30,7 +35,12 @@ type Remote struct {
 	UniqueEntities  *entity.Store
 	Blocks          *blocks.Store
 	HandleStartGame chan bool
+	serverInfo      Info
 	connected       bool
+}
+
+func (remote *Remote) Info() Info {
+	return remote.serverInfo
 }
 
 type ConnectConfig struct {
@@ -39,14 +49,19 @@ type ConnectConfig struct {
 	HandleStartgame bool
 }
 
-func Connect(address string, player Player, config ...ConnectConfig) (remote *Remote, err error) {
+type Info struct {
+	Host string
+	Port int
+}
+
+func Connect(info Info, player Player, config ...ConnectConfig) (remote *Remote, err error) {
 	clientData := player.Conn().ClientData()
 	clientData.ThirdPartyName = "VaStLeXiScOoL"                      // ThirdPartyName can be used as a sort of shared secret (Its not implemented yet which is why it can't be set from outside this file)
 	clientData.PlatformOfflineID = player.Conn().IdentityData().XUID // Pmmp has an issue getting the XUID with auth disabled so XUID is here to solve the issue.
 	conn, err := minecraft.Dialer{
 		ClientData:   clientData,
 		IdentityData: player.Conn().IdentityData(),
-	}.Dial("raknet", address)
+	}.Dial("raknet", fmt.Sprintf("%v:%v", info.Host, info.Port))
 	if err != nil {
 		return
 	}
@@ -77,7 +92,7 @@ func Connect(address string, player Player, config ...ConnectConfig) (remote *Re
 		player.Blocks().Import(conn.GameData().Blocks)
 	}
 
-	// Get the player up to date with the new things from GameData
+	// Get the session up to date with the new things from GameData
 
 	if remote.Player.Dimension().Load() != remote.Conn.GameData().Dimension {
 		_ = remote.Player.Conn().WritePacket(&packet.ChangeDimension{
@@ -214,7 +229,7 @@ func (remote *Remote) handlePackets() {
 							EventData: []byte(err.Error()),
 						})
 					} else {
-						err := remote.Player.Send(send.Address, ConnectConfig{
+						err := remote.Player.Send(remote.serverInfo, ConnectConfig{
 							Message:     send.Message,
 							HideMessage: send.HideMessage,
 						})

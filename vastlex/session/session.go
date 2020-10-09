@@ -1,24 +1,25 @@
-package player
+package session
 
 import (
 	"errors"
-	"github.com/SaiCoDev/gophertunnel/minecraft/text"
 	"github.com/VastleLLC/VastleX/vastlex/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/entity"
-	"github.com/VastleLLC/VastleX/vastlex/remote"
+	"github.com/VastleLLC/VastleX/vastlex/server"
 	"github.com/sandertv/gophertunnel/minecraft"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"github.com/sandertv/gophertunnel/minecraft/text"
 	"go.uber.org/atomic"
 	"strings"
 	"time"
 )
 
-var _ remote.Player = &Player{} // check if it implements remote.Player
+var _ server.Player = &Player{} // check if it implements server.Player
 
 type Player struct {
 	currentId      *atomic.Int64
 	conn           *minecraft.Conn
-	remote         *remote.Remote
+	remote         *server.Remote
 	entities       *entity.Store
 	uniqueEntities *entity.Store
 	blocks         *blocks.Store
@@ -26,7 +27,7 @@ type Player struct {
 	sending        bool
 }
 
-func NewPlayer(conn *minecraft.Conn) *Player {
+func New(conn *minecraft.Conn) *Player {
 	p := &Player{
 		currentId:      atomic.NewInt64(2),
 		conn:           conn,
@@ -39,20 +40,20 @@ func NewPlayer(conn *minecraft.Conn) *Player {
 	return p
 }
 
-func (p *Player) Send(address string, config ...remote.ConnectConfig) error {
+func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 	p.sending = true
 	defer func() {
 		p.sending = false
 	}()
 
-	conf := remote.ConnectConfig{}
+	conf := server.ConnectConfig{}
 	if len(config) > 0 {
 		conf = config[0]
 	}
 	if p.remote != nil {
 		conf.HandleStartgame = true
 	}
-	server, err := remote.Connect(address, p, conf)
+	server, err := server.Connect(info, p, conf)
 	if err != nil {
 		return err
 	}
@@ -105,7 +106,7 @@ func (p *Player) handlePackets() {
 			}
 			if p.remote != nil {
 				if p.remote.Conn != nil {
-					// remote is connected
+					// server is connected
 					switch pk := pk.(type) {
 					case *packet.CommandRequest:
 						strarr := strings.Split(strings.TrimPrefix(pk.CommandLine, "/"), " ")
@@ -113,7 +114,7 @@ func (p *Player) handlePackets() {
 						switch cmd {
 						case "send":
 							if len(args) > 0 {
-								err := p.Send(args[0], remote.ConnectConfig{HideMessage: true})
+								err := p.Send(p.remote.Info(), server.ConnectConfig{HideMessage: true})
 								if err != nil {
 									_ = p.conn.WritePacket(&packet.Text{Message: text.Red()("Error transfering you: " + err.Error())})
 								} else {
@@ -156,12 +157,28 @@ func (p *Player) Blocks() *blocks.Store {
 	return p.blocks
 }
 
-func (p *Player) Remote() *remote.Remote {
+func (p *Player) Remote() *server.Remote {
 	return p.remote
 }
 
 func (p *Player) Dimension() *atomic.Int32 {
 	return p.dimension
+}
+
+func (p *Player) Server() server.Server {
+	return p.remote
+}
+
+func (p *Player) Identity() login.IdentityData {
+	return p.conn.IdentityData()
+}
+
+func (p *Player) Message(message string) error {
+	return p.conn.WritePacket(&packet.Text{Message: message})
+}
+
+func (p *Player) WritePacket(packet packet.Packet) error {
+	return p.conn.WritePacket(packet)
 }
 
 func (p *Player) RemoteDisconnect(err error) {

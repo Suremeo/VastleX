@@ -1,0 +1,18 @@
+
+[Listener]
+  Host = "0.0.0.0"
+  Port = 19132
+
+[Lobby]
+  Enabled = true
+  Host = "127.0.0.1"
+  Port = 1001
+
+[Logging]
+  Debug = false
+
+[Minecraft]
+  Auth = true
+  MaxPlayers = 0
+  Motd = "§l§cVastle§r§r§l§fX§r§r"
+  ShowVersion = false

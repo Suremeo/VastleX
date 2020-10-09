@@ -1,4 +1,4 @@
-package remote
+package server
 
 import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 
