@@ -1,4 +1,4 @@
-![VastleX](/.github/VastleX.png)
+![VastleX](/.github/VastleX-Banner.png)
  
 This proxy is in very early alpha and shouldn't be used for a production server, more features and documentation will be added in the future.
 
