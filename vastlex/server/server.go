@@ -81,7 +81,7 @@ func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *
 		Blocks:         &blocks.Store{},
 		UniqueEntities: &entity.Store{},
 		Conn:           conn,
-		serverInfo: info,
+		serverInfo:     info,
 	}
 	if len(connectConfig) > 0 {
 		if connectConfig[0].HandleStartgame {

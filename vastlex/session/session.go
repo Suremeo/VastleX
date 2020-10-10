@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 )
+
 // Runtime check to see if the Player structure implements the server.Player interface.
 var _ server.Player = &Player{}
 

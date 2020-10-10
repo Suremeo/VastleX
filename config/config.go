@@ -35,7 +35,7 @@ type Structure struct {
 		Port    int
 	}
 	Debug struct {
-		Logging bool
+		Logging   bool
 		Profiling bool
 	}
 	Proxy struct {
@@ -114,7 +114,7 @@ func DefaultConfig() Structure {
 			Port:    19133,
 		},
 		Debug: struct {
-			Logging bool
+			Logging   bool
 			Profiling bool
 		}{},
 		Proxy: struct {
