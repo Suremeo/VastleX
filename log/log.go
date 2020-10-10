@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// Checksum is the checksum of the proxy file.
 var Checksum = func() string {
 	f, err := os.Open(os.Args[0])
 	FatalError("Error generating checksum", err)
@@ -24,8 +25,10 @@ var Checksum = func() string {
 	return hex.EncodeToString(hash.Sum(nil))
 }()
 
+// Diode is a non-blocking writer that ensures it doesn't cause lag with too much logging.
 var Diode diode.Writer
 
+// Debugging represents whether or not the proxy will log debug messages (Its auto updated to whatever is set in the configuration).
 var Debugging = false
 
 // init initializes the logger & diode writer so that the logging doesn't cause lag.

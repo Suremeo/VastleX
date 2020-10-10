@@ -3,7 +3,6 @@ package session
 import (
 	"errors"
 	"github.com/VastleLLC/VastleX/config"
-	"github.com/VastleLLC/VastleX/log"
 	"github.com/VastleLLC/VastleX/vastlex/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/entity"
 	"github.com/VastleLLC/VastleX/vastlex/server"
@@ -14,9 +13,10 @@ import (
 	"strings"
 	"time"
 )
+// Runtime check to see if the Player structure implements the server.Player interface.
+var _ server.Player = &Player{}
 
-var _ server.Player = &Player{} // check if it implements server.Player
-
+// Player represents a player connected to the proxy.
 type Player struct {
 	currentId      *atomic.Int64
 	conn           *minecraft.Conn
@@ -28,6 +28,7 @@ type Player struct {
 	sending        bool
 }
 
+// New initializes a player using the supplied *minecraft.Conn.
 func New(conn *minecraft.Conn) *Player {
 	p := &Player{
 		currentId:      atomic.NewInt64(2),
@@ -41,6 +42,7 @@ func New(conn *minecraft.Conn) *Player {
 	return p
 }
 
+// Send transfers a player to a different server.
 func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 	p.sending = true
 	defer func() {
@@ -59,7 +61,6 @@ func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 		return err
 	}
 	if p.remote == nil {
-		p.remote = remote
 		// first remote (let client handle startgame etc)
 		gameData := remote.Conn.GameData()
 		gameData.EntityUniqueID = 1
@@ -75,7 +76,6 @@ func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 			ActionPermissions: uint32(packet.ActionPermissionBuildAndMine | packet.ActionPermissionDoorsAndSwitched | packet.ActionPermissionOpenContainers | packet.ActionPermissionAttackPlayers | packet.ActionPermissionAttackMobs),
 		})
 	} else {
-		p.remote = remote
 		_ = p.remote.Conn.Close()
 		select {
 		case <-time.After(10 * time.Second):
@@ -84,9 +84,11 @@ func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 			// connected
 		}
 	}
+	p.remote = remote
 	return err
 }
 
+// handlePacket handles the packets sent by the client and directs them to the server they are currently connected to.
 func (p *Player) handlePackets() {
 	go func() {
 		for {
@@ -118,55 +120,60 @@ func (p *Player) handlePackets() {
 	}()
 }
 
+// CurrentId returns the entity id counter for the player.
 func (p *Player) CurrentId() *atomic.Int64 {
 	return p.currentId
 }
 
+// Conn returns the *minecraft.Conn for the player.
 func (p *Player) Conn() *minecraft.Conn {
 	return p.conn
 }
 
+// Entities returns the entity store for the player.
 func (p *Player) Entities() *entity.Store {
 	return p.entities
 }
 
+// UniqueEntities returns the unique entity store for the player.
 func (p *Player) UniqueEntities() *entity.Store {
 	return p.uniqueEntities
 }
 
+// Blocks returns the block store for the player.
 func (p *Player) Blocks() *blocks.Store {
 	return p.blocks
 }
 
+// Dimension returns the player's current dimension.
 func (p *Player) Dimension() *atomic.Int32 {
 	return p.dimension
 }
 
+// Server returns the current server that the player is connected to.
 func (p *Player) Server() server.Server {
 	return p.remote
 }
 
+// Identity returns the players login.IdentityData.
 func (p *Player) Identity() login.IdentityData {
 	return p.conn.IdentityData()
 }
 
+// Message sends a chat message to the player.
 func (p *Player) Message(message string) error {
 	return p.conn.WritePacket(&packet.Text{Message: message})
 }
 
+// WritePacket writes a packet directly to the player.
 func (p *Player) WritePacket(packet packet.Packet) error {
 	return p.conn.WritePacket(packet)
 }
 
+// RemoteDisconnect is called when a server disconnects the player.
 func (p *Player) RemoteDisconnect(err error) {
 	if !p.sending {
-		log.Debug().Str("username", p.Identity().DisplayName).Err(err).Msg("Player disconnected from server")
-		if config.Config.Fallback.Enabled {
-			if p.remote.Info().Host == config.Config.Fallback.Host && p.remote.Info().Port == config.Config.Fallback.Port {
-				// They got disconnected from the fallback server so we shouldn't send them to it again.
-				p.remote = nil
-				p.Kick("Unknown error occured in your connection", err.Error())
-			}
+		if config.Config.Fallback.Enabled && config.Config.Fallback.Host != p.remote.Info().Host && config.Config.Fallback.Port != p.remote.Info().Port {
 			err = p.Send(server.Info{
 				Host: config.Config.Fallback.Host,
 				Port: config.Config.Fallback.Port,
@@ -182,6 +189,7 @@ func (p *Player) RemoteDisconnect(err error) {
 	}
 }
 
+// Kick kicks the player from the proxy.
 func (p *Player) Kick(msg ...string) {
 	m := "No reason provided"
 	if len(msg) > 0 {

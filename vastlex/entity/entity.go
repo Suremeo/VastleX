@@ -31,10 +31,12 @@ func (store *Store) Delete(eid int64) *Store {
 	return store
 }
 
+// Range loops through the entity store.
 func (store *Store) Range(fun func(key, value interface{}) bool) {
 	store.entities.Range(fun)
 }
 
+// Clear clears the entity store.
 func (store *Store) Clear() *Store {
 	store.entities = sync.Map{}
 	return store

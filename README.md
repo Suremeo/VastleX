@@ -1,6 +1,6 @@
 ![VastleX](/.github/VastleX-Banner.png)
  
-This proxy is in very early alpha and shouldn't be used for a production server, more features and documentation will be added in the future.
+**VastleX** is relatively stable at this point however,
 
 #### Features
 
@@ -9,8 +9,8 @@ This proxy is in very early alpha and shouldn't be used for a production server,
 - [X] Utilizing a custom packet for transferring
 - [X] Config System
 - [X] Colored logging to console w/ a configurable mode for debug messages
-- [ ] Documentation
-- [ ] PocketMine-MP plugin for interacting with **VastleX**
+- [X] Documentation
+- [X] PocketMine-MP plugin for interacting with **VastleX**
 - [ ] Plugin System
 - [ ] Console Interface
 - [ ] Socket system for inter-communication between servers

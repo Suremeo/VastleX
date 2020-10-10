@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"github.com/VastleLLC/VastleX/config"
 	"github.com/VastleLLC/VastleX/log"
@@ -15,7 +14,7 @@ import (
 	"go.uber.org/atomic"
 )
 
-// A player connected to a server.
+// Player represents a player who is connected to the server.
 type Player interface {
 	Conn() *minecraft.Conn
 	CurrentId() *atomic.Int64
@@ -26,13 +25,14 @@ type Player interface {
 	Server() Server
 	Dimension() *atomic.Int32
 	Send(info Info, config ...ConnectConfig) error
-	Kick(...string)
 }
 
+// Server represents a Minecraft server.
 type Server interface {
 	Info() Info
 }
 
+// Remote is a connection to a server.
 type Remote struct {
 	Player          Player
 	Conn            *minecraft.Conn
@@ -41,26 +41,32 @@ type Remote struct {
 	Blocks          *blocks.Store
 	HandleStartGame chan bool
 	serverInfo      Info
+	connected       bool
 }
 
+// Info returns info about the server.
 func (remote *Remote) Info() Info {
 	return remote.serverInfo
 }
 
+// ConnectConfig is the configuration for sending a player.
 type ConnectConfig struct {
 	Message         string
 	HideMessage     bool
 	HandleStartgame bool
 }
 
+// Info is the info about a Minecraft server.
 type Info struct {
 	Host string
 	Port int
 }
 
+// Connect opens a connection to a server to transfer the player.
 func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *Remote, err error) {
 	clientData := player.Conn().ClientData()
-	clientData.ThirdPartyName = config.Config.Proxy.Secret          // ThirdPartyName is used as a placeholder for the connection secret
+	clientData.ThirdPartyName = config.Config.Proxy.Secret // ThirdPartyName is used as a placeholder for the connection secret
+	clientData.PlatformOfflineID = player.Conn().RemoteAddr().String()
 	clientData.PlatformOnlineID = player.Conn().IdentityData().XUID // Pmmp has an issue getting the XUID with auth disabled so the PlatformOnlineID is set to the players XUID to solve the issue.
 	conn, err := minecraft.Dialer{
 		ClientData:   clientData,
@@ -75,6 +81,7 @@ func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *
 		Blocks:         &blocks.Store{},
 		UniqueEntities: &entity.Store{},
 		Conn:           conn,
+		serverInfo: info,
 	}
 	if len(connectConfig) > 0 {
 		if connectConfig[0].HandleStartgame {
@@ -142,9 +149,11 @@ func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *
 			}
 		}
 	}()
+	remote.connected = true
 	return
 }
 
+// handlePackets handles all packets coming from the server, translates them and sends to the client.
 func (remote *Remote) handlePackets() {
 	go func() {
 		for {
@@ -161,59 +170,11 @@ func (remote *Remote) handlePackets() {
 				continue
 			}
 			switch pk := pk.(type) {
-			case *packet.AddActor:
-				newId := remote.Player.CurrentId().Inc()
-				remote.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
-				remote.Entities.Set(int64(pk.EntityRuntimeID), newId)
-				remote.UniqueEntities.Set(pk.EntityUniqueID, int64(pk.EntityRuntimeID))
-				remote.Player.UniqueEntities().Set(int64(pk.EntityRuntimeID), pk.EntityUniqueID)
-				break
-			case *packet.AddItemActor:
-				newId := remote.Player.CurrentId().Inc()
-				remote.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
-				remote.Entities.Set(int64(pk.EntityRuntimeID), newId)
-				remote.UniqueEntities.Set(pk.EntityUniqueID, int64(pk.EntityRuntimeID))
-				remote.Player.UniqueEntities().Set(int64(pk.EntityRuntimeID), pk.EntityUniqueID)
-				break
-			case *packet.AddPlayer:
-				if pk.EntityRuntimeID != 1 {
-					newId := remote.Player.CurrentId().Inc()
-					remote.Player.Entities().Set(newId, int64(pk.EntityRuntimeID))
-					remote.Entities.Set(int64(pk.EntityRuntimeID), newId)
-					remote.UniqueEntities.Set(pk.EntityUniqueID, int64(pk.EntityRuntimeID))
-					remote.Player.UniqueEntities().Set(int64(pk.EntityRuntimeID), pk.EntityUniqueID)
-				}
-				break
-			case *packet.RemoveActor:
-				_ = remote.Player.Conn().WritePacket(&packet.RemoveActor{EntityUniqueID: remote.Player.UniqueEntities().Get(remote.UniqueEntities.Get(pk.EntityUniqueID))})
-				rid := remote.UniqueEntities.Get(pk.EntityUniqueID)
-				eid := remote.Entities.Get(rid)
-				remote.Player.Entities().Delete(eid)
-				remote.Entities.Delete(rid)
-				remote.UniqueEntities.Delete(pk.EntityUniqueID)
-				remote.Player.UniqueEntities().Delete(rid)
-				continue
 			case *packet.Disconnect:
-				remote.Player.RemoteDisconnect(errors.New(pk.Message))
+				println("Disconnected: " + pk.Message)
 				break
 			case *packet.ChangeDimension:
 				remote.Player.Dimension().Store(pk.Dimension)
-				break
-			case *packet.ResourcePacksInfo:
-				if remote.HandleStartGame != nil {
-					_ = remote.Conn.WritePacket(&packet.ResourcePackClientResponse{
-						Response: packet.PackResponseAllPacksDownloaded,
-					})
-					continue
-				}
-				break
-			case *packet.ResourcePackStack:
-				if remote.HandleStartGame != nil {
-					_ = remote.Conn.WritePacket(&packet.ResourcePackClientResponse{
-						Response: packet.PackResponseCompleted,
-					})
-					continue
-				}
 				break
 			case *packets.VastleXTransfer:
 				err = remote.Player.Send(Info{
@@ -226,6 +187,10 @@ func (remote *Remote) handlePackets() {
 
 				break
 			}
+			if !remote.connected {
+				continue
+			}
+			remote.handleAddRemoveEntities(pk)
 			blocks.TranslatePacket(pk, remote.Player.Blocks(), remote.Blocks)
 			if entity.TranslatePacket(pk, remote.Entities) {
 				_ = remote.Player.Conn().WritePacket(pk)

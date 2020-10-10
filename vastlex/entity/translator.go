@@ -6,6 +6,7 @@ import (
 	"reflect"
 )
 
+// TranslatePacket translates the EntityRuntimeID inside of certain packets.
 func TranslatePacket(pk packet.Packet, store *Store) bool {
 	switch pk := pk.(type) {
 	case *packet.CommandBlockUpdate:

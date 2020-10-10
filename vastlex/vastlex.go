@@ -9,13 +9,12 @@ import (
 	"github.com/VastleLLC/VastleX/vastlex/session"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/text"
-	"net/http"
-	_ "net/http/pprof"
 )
 
 // VastleX is the main structure for the proxy.
 var VastleX Proxy = vastlex
 
+// vastlex is the non interface version of the VastleX variable.
 var vastlex = &Structure{
 	listener: &minecraft.Listener{
 		ErrorLog:               nil,
@@ -39,11 +38,6 @@ type Structure struct {
 
 // Start starts the proxy.
 func Start() (err error) {
-	if config.Config.Debug.Profiling {
-		go func() {
-			log.FatalError("Error starting profiling server", http.ListenAndServe(config.Config.Listener.Host + ":6060", nil))
-		}()
-	}
 	err = vastlex.listener.Listen("raknet", fmt.Sprintf("%v:%v", vastlex.info.Host, vastlex.info.Port))
 	if err != nil {
 		return err
