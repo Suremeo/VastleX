@@ -10,7 +10,7 @@
 - [X] Config System
 - [X] Colored logging to console w/ a configurable mode for debug messages
 - [X] Documentation
-- [X] PocketMine-MP plugin for interacting with **VastleX**
+- [X] PocketMine-MP plugin for interacting with [**VastleX**](https://github.com/VastleLLC/VastleX-PM)
 - [ ] Plugin System
 - [ ] Console Interface
 - [ ] Socket system for inter-communication between servers
