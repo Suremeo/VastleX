@@ -129,7 +129,6 @@ func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *
 	player.UniqueEntities().Set(1, int64(conn.GameData().EntityUniqueID))
 	remote.UniqueEntities.Set(conn.GameData().EntityUniqueID, 1)
 
-	remote.handlePackets()
 	go func() {
 		err = conn.DoSpawn()
 		if err != nil {
@@ -139,6 +138,7 @@ func Connect(info Info, player Player, connectConfig ...ConnectConfig) (remote *
 			_ = conn.Close()
 		} else {
 			log.Debug().Str("host", info.Host).Int("port", info.Port).Str("username", player.Conn().IdentityData().DisplayName).Msg("Player spawned in")
+			remote.handlePackets()
 			// Spawn is done so we can clear the previous title
 			_ = player.Conn().WritePacket(&packet.SetTitle{
 				ActionType: packet.TitleActionSetTitle,

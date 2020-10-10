@@ -47,7 +47,7 @@ func New(conn *minecraft.Conn) *Player {
 		blocks:         &blocks.Store{},
 		dimension:      atomic.NewInt32(0),
 	}
-	p.handlePackets()
+
 	return p
 }
 
@@ -84,6 +84,7 @@ func (p *Player) Send(info server.Info, config ...server.ConnectConfig) error {
 			PlayerUniqueID:    1,
 			ActionPermissions: uint32(packet.ActionPermissionBuildAndMine | packet.ActionPermissionDoorsAndSwitched | packet.ActionPermissionOpenContainers | packet.ActionPermissionAttackPlayers | packet.ActionPermissionAttackMobs),
 		})
+		defer p.handlePackets()
 	} else {
 		_ = p.remote.Conn.Close()
 		select {
