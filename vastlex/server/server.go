@@ -2,15 +2,15 @@ package server
 
 import (
 	"fmt"
-	"github.com/VastleLLC/VastleX/config"
-	"github.com/VastleLLC/VastleX/log"
-	"github.com/VastleLLC/VastleX/vastlex/blocks"
-	"github.com/VastleLLC/VastleX/vastlex/entity"
-	"github.com/VastleLLC/VastleX/vastlex/packets"
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/vastlellc/vastlex/config"
+	"github.com/vastlellc/vastlex/log"
+	"github.com/vastlellc/vastlex/vastlex/blocks"
+	"github.com/vastlellc/vastlex/vastlex/entity"
+	"github.com/vastlellc/vastlex/vastlex/packets"
 	"go.uber.org/atomic"
 )
 

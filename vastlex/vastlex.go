@@ -3,12 +3,12 @@ package vastlex
 import (
 	"errors"
 	"fmt"
-	"github.com/VastleLLC/VastleX/config"
-	"github.com/VastleLLC/VastleX/log"
-	"github.com/VastleLLC/VastleX/vastlex/server"
-	"github.com/VastleLLC/VastleX/vastlex/session"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/vastlellc/vastlex/config"
+	"github.com/vastlellc/vastlex/log"
+	"github.com/vastlellc/vastlex/vastlex/server"
+	"github.com/vastlellc/vastlex/vastlex/session"
 	"net/http"
 	_ "net/http/pprof"
 )
