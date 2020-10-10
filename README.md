@@ -1,6 +1,6 @@
 ![VastleX](/.github/VastleX-Banner.png)
  
-**VastleX** is relatively stable at this point however,
+**VastleX** is relatively stable at this point however, utilization on a large network is not recommended due to the lack of multiple lobby server support & a plugin system.
 
 #### Features
 
