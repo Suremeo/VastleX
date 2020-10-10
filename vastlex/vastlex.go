@@ -9,6 +9,8 @@ import (
 	"github.com/VastleLLC/VastleX/vastlex/session"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"net/http"
+	_ "net/http/pprof"
 )
 
 // VastleX is the main structure for the proxy.
@@ -42,6 +44,12 @@ func Start() (err error) {
 		log.Title(fmt.Sprintf("%v", log.TotalPlayers))
 	} else {
 		log.Title(fmt.Sprintf("%v/%v", log.TotalPlayers, config.Config.Minecraft.MaxPlayers))
+	}
+	if config.Config.Debug.Profiling {
+		go func() {
+			log.Debug().Str("host", "localhost").Int("port", 6060).Msg("The profiling server is running")
+			log.FatalError("Error occured with the profiling server", http.ListenAndServe("localhost:6060", nil))
+		}()
 	}
 	err = vastlex.listener.Listen("raknet", fmt.Sprintf("%v:%v", vastlex.info.Host, vastlex.info.Port))
 	if err != nil {
