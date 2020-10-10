@@ -2,7 +2,9 @@ package session
 
 import (
 	"errors"
+	"fmt"
 	"github.com/VastleLLC/VastleX/config"
+	"github.com/VastleLLC/VastleX/log"
 	"github.com/VastleLLC/VastleX/vastlex/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/entity"
 	"github.com/VastleLLC/VastleX/vastlex/server"
@@ -30,6 +32,12 @@ type Player struct {
 
 // New initializes a player using the supplied *minecraft.Conn.
 func New(conn *minecraft.Conn) *Player {
+	log.TotalPlayers++
+	if config.Config.Minecraft.MaxPlayers == 0 {
+		log.Title(fmt.Sprintf("%v", log.TotalPlayers))
+	} else {
+		log.Title(fmt.Sprintf("%v/%v", log.TotalPlayers, config.Config.Minecraft.MaxPlayers))
+	}
 	p := &Player{
 		currentId:      atomic.NewInt64(2),
 		conn:           conn,
@@ -191,6 +199,12 @@ func (p *Player) RemoteDisconnect(err error) {
 
 // Kick kicks the player from the proxy.
 func (p *Player) Kick(msg ...string) {
+	log.TotalPlayers--
+	if config.Config.Minecraft.MaxPlayers == 0 {
+		log.Title(fmt.Sprintf("%v", log.TotalPlayers))
+	} else {
+		log.Title(fmt.Sprintf("%v/%v", log.TotalPlayers, config.Config.Minecraft.MaxPlayers))
+	}
 	m := "No reason provided"
 	if len(msg) > 0 {
 		m = strings.Join(msg, "\n")

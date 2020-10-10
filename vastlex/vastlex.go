@@ -33,11 +33,16 @@ var vastlex = &Structure{
 type Structure struct {
 	listener *minecraft.Listener
 	info     server.Info
-	players  map[string]Player
+	players  map[string]Player // Will be put to use once events are added.
 }
 
 // Start starts the proxy.
 func Start() (err error) {
+	if config.Config.Minecraft.MaxPlayers == 0 {
+		log.Title(fmt.Sprintf("%v", log.TotalPlayers))
+	} else {
+		log.Title(fmt.Sprintf("%v/%v", log.TotalPlayers, config.Config.Minecraft.MaxPlayers))
+	}
 	err = vastlex.listener.Listen("raknet", fmt.Sprintf("%v:%v", vastlex.info.Host, vastlex.info.Port))
 	if err != nil {
 		return err
@@ -50,16 +55,16 @@ func Start() (err error) {
 			return err
 		}
 		go func() {
-			vastlex.players[conn.(*minecraft.Conn).IdentityData().DisplayName] = session.New(conn.(*minecraft.Conn))
-			log.Info().Str("username", conn.(*minecraft.Conn).IdentityData().DisplayName).Msg("Player connected")
+			p := session.New(conn.(*minecraft.Conn))
+			log.Info().Str("username", p.Conn().IdentityData().DisplayName).Msg("Player connected")
 			if config.Config.Lobby.Enabled {
-				err = vastlex.players[conn.(*minecraft.Conn).IdentityData().DisplayName].Send(server.Info{
+				err = p.Send(server.Info{
 					Host: config.Config.Lobby.Host,
 					Port: config.Config.Lobby.Port,
 				})
 				if err != nil {
-					vastlex.players[conn.(*minecraft.Conn).IdentityData().DisplayName].Kick(text.Red()("We had an error connecting you to a lobby"))
-					log.Err().Str("username", conn.(*minecraft.Conn).IdentityData().DisplayName).Err(err).Msg("Player failed to connect to lobby")
+					p.Kick(text.Red()("We had an error connecting you to a lobby"))
+					log.Err().Str("username", p.Identity().DisplayName).Err(err).Msg("Player failed to connect to lobby")
 				}
 			}
 		}()

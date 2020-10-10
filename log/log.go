@@ -31,6 +31,9 @@ var Diode diode.Writer
 // Debugging represents whether or not the proxy will log debug messages (Its auto updated to whatever is set in the configuration).
 var Debugging = false
 
+// TotalPlayers is temporary until events are added.
+var TotalPlayers = 0
+
 // init initializes the logger & diode writer so that the logging doesn't cause lag.
 func init() {
 	wr := diode.NewWriter(os.Stdout, 1000, 5*time.Millisecond, func(missed int) {
@@ -38,7 +41,6 @@ func init() {
 	})
 	Diode = wr
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: wr})
-	Title("0/1")
 }
 
 // Success logs a success message.
@@ -77,7 +79,7 @@ func Err() *zerolog.Event {
 
 // Title updates the title of the terminal.
 func Title(msg string) {
-	_, _ = Diode.Write([]byte(fmt.Sprintf("\033]0;VastleX | %v | %v\007", Checksum, msg)))
+	_, _ = Diode.Write([]byte(fmt.Sprintf("\033]0;VastleX | (%v) | Players: %v\007", Checksum, msg)))
 }
 
 // FatalError logs an error to console exits the program.
