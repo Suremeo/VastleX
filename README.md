@@ -15,6 +15,13 @@
 - [ ] Console Interface
 - [ ] Socket system for inter-communication between servers
 
-#### Questions?
+#### Also....
+We support all major server software's, use the following plugin
+below to add support of VastleX to your server. If you're using
+PocketMine-MP, you can use [**this**](https://github.com/VastleLLC/VastleX-PM) official plugin.
+You're also free to create/improve an already existing one, we'll be sure to link somewhere here...
+
+#### How to get started / questions?
 
 Try using our [wiki](https://github.com/VastleLLC/VastleX/wiki)
+
