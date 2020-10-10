@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/VastleLLC/VastleX/log"
-	"github.com/VastleLLC/VastleX/vastlex"
+	"github.com/vastlellc/vastlex/log"
+	"github.com/vastlellc/vastlex/vastlex"
 )
 
 // main starts the proxy.

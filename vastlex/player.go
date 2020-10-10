@@ -1,9 +1,9 @@
 package vastlex
 
 import (
-	"github.com/VastleLLC/VastleX/vastlex/server"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"github.com/vastlellc/vastlex/vastlex/server"
 )
 
 // Player is a player connected to the proxy.

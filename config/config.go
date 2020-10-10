@@ -3,9 +3,9 @@ package config
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"github.com/VastleLLC/VastleX/log"
 	"github.com/pelletier/go-toml"
 	"github.com/sandertv/gophertunnel/minecraft/text"
+	"github.com/vastlellc/vastlex/log"
 	"io/ioutil"
 	"os"
 )
