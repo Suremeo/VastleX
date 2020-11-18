@@ -16,12 +16,12 @@ import (
 // ...
 type Player struct {
 	minecraft.Player
-	config *config.Player
-	dialer interfaces.Dialer
-	state interfaces.State
-	blocks *blocks.Store
+	config      *config.Player
+	dialer      interfaces.Dialer
+	state       interfaces.State
+	blocks      *blocks.Store
 	chunkradius int32
-	onFallback bool
+	onFallback  bool
 }
 
 // Blocks returns the block store for the player (Used for translating block runtime ids).

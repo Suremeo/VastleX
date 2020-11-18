@@ -8,8 +8,8 @@ import (
 )
 
 type Encoder struct {
-	io io.Writer
-	gob *gob.Encoder
+	io    io.Writer
+	gob   *gob.Encoder
 	mutex sync.Mutex
 }
 

@@ -2,7 +2,7 @@ package entities
 
 import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 
-type AvailableCommands struct {}
+type AvailableCommands struct{}
 
 func (AvailableCommands) Translate(pk packet.Packet, eid1, eid2 int64, uid1, uid2 int64) {
 }

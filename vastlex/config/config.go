@@ -37,12 +37,12 @@ type Structure struct {
 	}
 	Debug struct {
 		Logging   bool
-		Profiling struct{
-			PPROF struct{
+		Profiling struct {
+			PPROF struct {
 				Enabled bool
 				Address string
 			}
-			GOSIVY struct{
+			GOSIVY struct {
 				Enabled bool
 				Address string
 			}
@@ -130,12 +130,12 @@ func DefaultConfig() Structure {
 		},
 		Debug: struct {
 			Logging   bool
-			Profiling struct{
-				PPROF struct{
+			Profiling struct {
+				PPROF struct {
 					Enabled bool
 					Address string
 				}
-				GOSIVY struct{
+				GOSIVY struct {
 					Enabled bool
 					Address string
 				}

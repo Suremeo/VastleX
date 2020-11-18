@@ -66,13 +66,13 @@ func (l *logger) Title(m string) {
 
 // Info logs an INFO message to the console.
 func (l *logger) Info(message string) {
-	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime() + " " + color.HiGreenString("INFO") + color.HiBlackString(" > "), message)))
+	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.HiGreenString("INFO")+color.HiBlackString(" > "), message)))
 }
 
 // Debug logs a DEBUG message to the console only if debug logging is enabled in the proxy configuration.
 func (l *logger) Debug(message string) {
 	if l.debug {
-		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime() + " " + color.YellowString("DEBUG") + color.HiBlackString(" > "), message)))
+		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.YellowString("DEBUG")+color.HiBlackString(" > "), message)))
 	}
 }
 
@@ -83,21 +83,21 @@ func (l *logger) SetDebug(enabled bool) {
 
 // Warn logs a WARN message to the console.
 func (l *logger) Warn(message string) {
-	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime() + " " + color.RedString("WARN") + color.HiBlackString(" > "), message)))
+	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.RedString("WARN")+color.HiBlackString(" > "), message)))
 }
 
 // Error logs a ERROR message to the console if the error provided is valid.
 func (l *logger) Error(err error) {
 	if err != nil {
-		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime() + " " + color.HiRedString("ERROR") + color.HiBlackString(" > "), err.Error())))
+		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.HiRedString("ERROR")+color.HiBlackString(" > "), err.Error())))
 	}
 }
 
 // Fatal logs a FATAL message to the console and exits the program if the error provided is valid.
 func (l *logger) Fatal(err error) {
 	if err != nil {
-		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime() + " " + color.HiRedString("FATAL") + color.HiBlackString(" > "), err.Error())))
-		time.Sleep(100*time.Millisecond)
+		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.HiRedString("FATAL")+color.HiBlackString(" > "), err.Error())))
+		time.Sleep(100 * time.Millisecond)
 		os.Exit(0)
 	}
 }

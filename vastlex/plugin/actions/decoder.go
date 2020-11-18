@@ -9,8 +9,8 @@ import (
 )
 
 type Decoder struct {
-	io io.Reader
-	gob *gob.Decoder
+	io    io.Reader
+	gob   *gob.Decoder
 	mutex sync.Mutex
 }
 

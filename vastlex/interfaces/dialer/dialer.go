@@ -14,12 +14,12 @@ type Dialer struct {
 	minecraft.Dialer
 	entityId int64
 	uniqueId int64
-	player interfaces.InternalPlayer
-	mutex sync.Mutex
-	ready chan struct{}
-	blocks *blocks.Store
+	player   interfaces.InternalPlayer
+	mutex    sync.Mutex
+	ready    chan struct{}
+	blocks   *blocks.Store
 	entities sync.Map
-	leaving bool
+	leaving  bool
 }
 
 func (dialer *Dialer) EntityId() int64 {

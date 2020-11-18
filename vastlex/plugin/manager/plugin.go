@@ -12,12 +12,12 @@ var Indexes map[string]int
 var Mutex sync.Mutex
 
 type Plugin struct {
-	Name string
-	Version int
-	encoder *actions.Encoder
-	decoder *actions.Decoder
-	cmd *exec.Cmd
-	close *sync.Once
+	Name           string
+	Version        int
+	encoder        *actions.Encoder
+	decoder        *actions.Decoder
+	cmd            *exec.Cmd
+	close          *sync.Once
 	packetsHandled []int16
 }
 
@@ -33,12 +33,12 @@ func New(cmd *exec.Cmd) (*Plugin, error) {
 		return nil, err
 	}
 	return &Plugin{
-		Name:             "Unknown",
-		Version:          0,
-		encoder:          actions.NewEncoder(out),
-		decoder:          actions.NewDecoder(in),
-		cmd:              cmd,
-		close:            &sync.Once{},
+		Name:    "Unknown",
+		Version: 0,
+		encoder: actions.NewEncoder(out),
+		decoder: actions.NewDecoder(in),
+		cmd:     cmd,
+		close:   &sync.Once{},
 	}, nil
 }
 

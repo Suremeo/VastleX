@@ -2,7 +2,7 @@ package entities
 
 import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 
-type SetScoreboardIdentity struct {}
+type SetScoreboardIdentity struct{}
 
 func (SetScoreboardIdentity) Translate(pk packet.Packet, eid1, eid2 int64, uid1, uid2 int64) {
 }

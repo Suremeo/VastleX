@@ -18,17 +18,17 @@ import (
 func Connect(player interfaces.InternalPlayer, address string, port int) error {
 	client := player.ClientData()
 	client.ThirdPartyName = config.Config.Security.Secret // ThirdPartyName is used as a placeholder for the connection secret.
-	client.ServerAddress = player.RemoteAddr().String() // ServerAddress is used as a placeholder for the players ip.
-	client.PlatformOnlineID = player.Identity().XUID // Pmmp has an issue getting the XUID with auth disabled so the PlatformOnlineID is set to the players XUID to solve the issue.
+	client.ServerAddress = player.RemoteAddr().String()   // ServerAddress is used as a placeholder for the players ip.
+	client.PlatformOnlineID = player.Identity().XUID      // Pmmp has an issue getting the XUID with auth disabled so the PlatformOnlineID is set to the players XUID to solve the issue.
 	conn, err := minecraft.Dial(player.Identity(), client, fmt.Sprintf("%s:%v", address, port))
 	if err != nil {
 		return errors.New("error connecting: dialer returned error: " + err.Error())
 	}
 	dialer := &Dialer{
-		Dialer:   conn,
-		player:   player,
-		mutex:    sync.Mutex{},
-		ready: make(chan struct{}),
+		Dialer: conn,
+		player: player,
+		mutex:  sync.Mutex{},
+		ready:  make(chan struct{}),
 	}
 	if config.Config.Debug.BlockTranslating {
 		dialer.blocks = &blocks.Store{}

@@ -8,8 +8,8 @@ import (
 
 // VastleXTransfer is the custom packet used for transferring a player.
 type VastleXTransfer struct {
-	Host        string
-	Port        int32
+	Host string
+	Port int32
 }
 
 // ID ...

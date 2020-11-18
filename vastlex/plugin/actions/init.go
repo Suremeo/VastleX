@@ -2,7 +2,7 @@ package actions
 
 // Init is sent from the plugin to server in order to initialize the plugin.
 type Init struct {
-	Name string
+	Name    string
 	Version int
 }
 

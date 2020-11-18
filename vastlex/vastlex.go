@@ -51,7 +51,7 @@ func Start() (err error) {
 		return err
 	}
 	vastlex.listener = l
-	log.DefaultLogger.Info("VastleX is running on " + fmt.Sprintf("%v:%v",  config.Config.Listener.Host,  config.Config.Listener.Port))
+	log.DefaultLogger.Info("VastleX is running on " + fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
 	for {
 		conn := vastlex.listener.Accept()
 		go func() {

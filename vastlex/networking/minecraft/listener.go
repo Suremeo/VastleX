@@ -30,19 +30,19 @@ var _ Listener = &listener{}
 
 // listener is an internal structure for the default listener.
 type listener struct {
-	motd *atomic.String
-	net *raknet.Listener
-	mutex sync.Mutex
-	count *atomic.Int32
+	motd     *atomic.String
+	net      *raknet.Listener
+	mutex    sync.Mutex
+	count    *atomic.Int32
 	incoming chan *Connection
-	key *ecdsa.PrivateKey
+	key      *ecdsa.PrivateKey
 }
 
 // Listen listens for new connections on the address specified in the configuration.
 func Listen() (_ Listener, err error) {
 	listener := &listener{
-		motd: atomic.NewString(config.Config.Minecraft.Motd),
-		count: atomic.NewInt32(0),
+		motd:     atomic.NewString(config.Config.Minecraft.Motd),
+		count:    atomic.NewInt32(0),
 		incoming: make(chan *Connection),
 	}
 	listener.key, _ = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)

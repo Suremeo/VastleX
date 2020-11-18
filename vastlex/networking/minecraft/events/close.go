@@ -1,7 +1,7 @@
 package events
 
 // Close represents a close event which is sent when the connection is closed.
-type Close struct {}
+type Close struct{}
 
 // ...
 func (*Close) ID() int {

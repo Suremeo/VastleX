@@ -11,14 +11,14 @@ import (
 // New initializes a interfaces.InternalPlayer for the provided minecraft.Player.
 func New(conn minecraft.Player) interfaces.InternalPlayer {
 	player := &Player{
-		Player: conn,
-		config: &config.Player{},
-		dialer: nil,
-		state:  interfaces.StateWaitingForFirstServer,
+		Player:      conn,
+		config:      &config.Player{},
+		dialer:      nil,
+		state:       interfaces.StateWaitingForFirstServer,
 		chunkradius: 16,
 	}
 	if config.Config.Debug.BlockTranslating {
-		player.blocks =  &blocks.Store{}
+		player.blocks = &blocks.Store{}
 	}
 	go player.listenPackets()
 	player.HandleEvent(&events.Close{}, func() {

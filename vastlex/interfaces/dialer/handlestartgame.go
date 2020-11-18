@@ -16,11 +16,11 @@ func handleStartGame(dialer *Dialer, pak packet.Packet) {
 		_ = dialer.player.WritePacket(&packet.SetPlayerGameType{GameType: pk.PlayerGameMode})
 		_ = dialer.player.WritePacket(&packet.GameRulesChanged{GameRules: pk.GameRules})
 		_ = dialer.player.WritePacket(&packet.MovePlayer{
-			EntityRuntimeID:          1,
-			Position:                 pk.PlayerPosition,
-			Pitch:                    pk.Pitch,
-			Yaw:                      pk.Yaw,
-			HeadYaw:                  pk.Yaw,
+			EntityRuntimeID: 1,
+			Position:        pk.PlayerPosition,
+			Pitch:           pk.Pitch,
+			Yaw:             pk.Yaw,
+			HeadYaw:         pk.Yaw,
 		})
 		_ = dialer.WritePacket(&packet.SetLocalPlayerAsInitialised{EntityRuntimeID: pk.EntityRuntimeID})
 		_ = dialer.WritePacket(&packet.RequestChunkRadius{ChunkRadius: dialer.player.ChunkRadius()})

@@ -2,7 +2,7 @@ package entities
 
 import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 
-type PlayerHotBar struct {}
+type PlayerHotBar struct{}
 
 func (PlayerHotBar) Translate(pk packet.Packet, eid1, eid2 int64, uid1, uid2 int64) {
 }

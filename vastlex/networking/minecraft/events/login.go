@@ -1,7 +1,7 @@
 package events
 
 // Login represents the login event for when the login process is complete for a player.
-type Login struct {}
+type Login struct{}
 
 // ...
 func (*Login) ID() int {

@@ -51,7 +51,6 @@ func Dial(identity login.IdentityData, client login.ClientData, address string) 
 	// Disable the batch packet limit so that the server can send packets as often as it wants to.
 	conn.decoder.DisableBatchPacketLimit()
 
-
 	request := login.EncodeOffline(*conn.identityData, *conn.clientData, key)
 	go conn.handlePackets()
 
@@ -142,6 +141,7 @@ type saltClaims struct {
 }
 
 var regex = regexp.MustCompile(`[^\\];`)
+
 // addressWithPongPort parses the redirect IPv4 port from the pong and returns the address passed with the port
 // found if present, or the original address if not.
 func addressWithPongPort(pong []byte, address string) string {

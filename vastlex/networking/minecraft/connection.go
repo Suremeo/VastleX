@@ -51,9 +51,9 @@ type Connection struct {
 	events     map[int]map[int]map[int]interface{}
 	packets    chan *packetData
 
-	deferredPackets []*packetData
+	deferredPackets      []*packetData
 	deferredPacketsMutex sync.Mutex
-	expected atomic.Value
+	expected             atomic.Value
 
 	loggedIn atomic.Bool
 }
@@ -173,15 +173,15 @@ func (connection *Connection) OnEvent(event events.Event, function interface{}) 
 	connection.events[event.ID()][this] = map[int]interface{}{
 		1: &struct {
 			Function interface{}
-			Channel chan struct{}
+			Channel  chan struct{}
 		}{
 			Function: function,
-			Channel: make(chan struct{}),
+			Channel:  make(chan struct{}),
 		},
 	}
 	return connection.events[event.ID()][this][1].(*struct {
 		Function interface{}
-		Channel chan struct{}
+		Channel  chan struct{}
 	}).Channel
 }
 
@@ -206,7 +206,7 @@ func (connection *Connection) executeEvent(event events.Event, args ...interface
 			if handler[1] != nil { // 0 is an OnEvent handler.
 				handle := handler[1].(*struct {
 					Function interface{}
-					Channel chan struct{}
+					Channel  chan struct{}
 				})
 				close(handle.Channel)
 				if handle.Function != nil {
@@ -219,7 +219,6 @@ func (connection *Connection) executeEvent(event events.Event, args ...interface
 		}
 	}
 }
-
 
 // takePushedBackPacket locks the pushed back packets lock and takes the next packet from the list of
 // pushed back packets. If none was found, it returns false, and if one was found, the data and true is
