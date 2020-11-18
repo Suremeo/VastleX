@@ -3,16 +3,10 @@ package config
 import (
 	"crypto/rand"
 	"encoding/hex"
-<<<<<<< Updated upstream:config/config.go
-	"github.com/pelletier/go-toml"
-	"github.com/sandertv/gophertunnel/minecraft/text"
-	"github.com/vastlellc/vastlex/log"
-=======
 	"fmt"
 	log "github.com/VastleLLC/VastleX/vastlex/logging"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"gopkg.in/yaml.v2"
->>>>>>> Stashed changes:vastlex/config/config.go
 	"io/ioutil"
 	"os"
 )

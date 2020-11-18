@@ -1,6 +1,6 @@
 ![VastleX](/.github/VastleX-Banner.png)
  
-**VastleX** is in very early alpha and should not be used for any production server at this point.
+**VastleX** is relatively stable at this point however, utilization on a large network is not recommended due to the lack of multiple lobby server support & a plugin system.
 
 #### Features
 

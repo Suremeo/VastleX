@@ -3,9 +3,6 @@ package vastlex
 import (
 	"errors"
 	"fmt"
-<<<<<<< Updated upstream
-	"github.com/sandertv/gophertunnel/minecraft"
-=======
 	"github.com/VastleLLC/VastleX/vastlex/config"
 	"github.com/VastleLLC/VastleX/vastlex/interfaces"
 	"github.com/VastleLLC/VastleX/vastlex/interfaces/player"
@@ -13,12 +10,7 @@ import (
 	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft"
 	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/events"
 	"github.com/nakabonne/gosivy/agent"
->>>>>>> Stashed changes
 	"github.com/sandertv/gophertunnel/minecraft/text"
-	"github.com/vastlellc/vastlex/config"
-	"github.com/vastlellc/vastlex/log"
-	"github.com/vastlellc/vastlex/vastlex/server"
-	"github.com/vastlellc/vastlex/vastlex/session"
 	"net/http"
 )
 
