@@ -3,76 +3,80 @@ package vastlex
 import (
 	"errors"
 	"fmt"
+<<<<<<< Updated upstream
 	"github.com/sandertv/gophertunnel/minecraft"
+=======
+	"github.com/VastleLLC/VastleX/vastlex/config"
+	"github.com/VastleLLC/VastleX/vastlex/interfaces"
+	"github.com/VastleLLC/VastleX/vastlex/interfaces/player"
+	log "github.com/VastleLLC/VastleX/vastlex/logging"
+	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft"
+	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/events"
+	"github.com/nakabonne/gosivy/agent"
+>>>>>>> Stashed changes
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"github.com/vastlellc/vastlex/config"
 	"github.com/vastlellc/vastlex/log"
 	"github.com/vastlellc/vastlex/vastlex/server"
 	"github.com/vastlellc/vastlex/vastlex/session"
 	"net/http"
-	_ "net/http/pprof"
 )
 
 // VastleX is the main structure for the proxy.
-var VastleX Proxy = vastlex
+var VastleX interfaces.VastleX = vastlex
 
 // vastlex is the non interface version of the VastleX variable.
 var vastlex = &Structure{
-	listener: &minecraft.Listener{
-		ErrorLog:               nil,
-		AuthenticationDisabled: !config.Config.Minecraft.Auth,
-		ServerName:             config.Config.Minecraft.Motd,
-		ShowVersion:            config.Config.Minecraft.ShowVersion,
-	},
-	info: server.Info{
-		Host: config.Config.Listener.Host,
-		Port: config.Config.Listener.Port,
-	},
-	players: map[string]Player{},
+	players: map[string]interfaces.Player{},
 }
 
 // Structure is the structure of VastleX.
 type Structure struct {
-	listener *minecraft.Listener
-	info     server.Info
-	players  map[string]Player // Will be put to use once events are added.
+	listener minecraft.Listener
+	players  map[string]interfaces.Player // Will be put to use once events are added.
 }
 
 // Start starts the proxy.
 func Start() (err error) {
-	if config.Config.Minecraft.MaxPlayers == 0 {
-		log.Title(fmt.Sprintf("%v", log.TotalPlayers))
-	} else {
-		log.Title(fmt.Sprintf("%v/%v", log.TotalPlayers, config.Config.Minecraft.MaxPlayers))
-	}
-	if config.Config.Debug.Profiling {
+	log.UpdatePlayerCount(0)
+	if config.Config.Debug.Profiling.PPROF.Enabled {
 		go func() {
-			log.Debug().Str("host", "localhost").Int("port", 6060).Msg("The profiling server is running")
-			log.FatalError("Error occured with the profiling server", http.ListenAndServe("localhost:6060", nil))
+			log.DefaultLogger.Info("The PPROF (https://github.com/google/pprof) profiler is running on " + config.Config.Debug.Profiling.PPROF.Address)
+			log.DefaultLogger.Fatal(http.ListenAndServe(config.Config.Debug.Profiling.PPROF.Address, nil))
 		}()
 	}
-	err = vastlex.listener.Listen("raknet", fmt.Sprintf("%v:%v", vastlex.info.Host, vastlex.info.Port))
+	if config.Config.Debug.Profiling.GOSIVY.Enabled {
+		log.DefaultLogger.Info("The GOSIVY (https://github.com/nakabonne/gosivy) profiler is running on " + config.Config.Debug.Profiling.GOSIVY.Address)
+		if err := agent.Listen(agent.Options{
+			Addr: config.Config.Debug.Profiling.GOSIVY.Address,
+		}); err != nil {
+			log.DefaultLogger.Fatal(err)
+		}
+		defer agent.Close()
+	}
+	l, err := minecraft.Listen()
 	if err != nil {
 		return err
 	}
-	log.Info().Str("host", vastlex.info.Host).Int("port", vastlex.info.Port).Str("checksum", log.Checksum).Msg("VastleX is listening for players")
-
+	vastlex.listener = l
+	log.DefaultLogger.Info("VastleX is running on " + fmt.Sprintf("%v:%v",  config.Config.Listener.Host,  config.Config.Listener.Port))
 	for {
-		conn, err := vastlex.listener.Accept()
-		if err != nil {
-			return err
-		}
+		conn := vastlex.listener.Accept()
 		go func() {
-			p := session.New(conn.(*minecraft.Conn))
-			log.Info().Str("username", p.Conn().IdentityData().DisplayName).Msg("Player connected")
+			p := player.New(conn)
+			log.DefaultLogger.Info(conn.Identity().DisplayName + " logged in.")
+			vastlex.players[conn.Identity().XUID] = p
+			p.HandleEvent(&events.Close{}, func() {
+				delete(vastlex.players, conn.Identity().XUID)
+				log.UpdatePlayerCount(len(vastlex.players))
+				log.DefaultLogger.Warn(conn.Identity().DisplayName + " logged out.")
+			})
+			log.UpdatePlayerCount(len(vastlex.players))
 			if config.Config.Lobby.Enabled {
-				err = p.Send(server.Info{
-					Host: config.Config.Lobby.Host,
-					Port: config.Config.Lobby.Port,
-				})
+				err = p.Send(config.Config.Lobby.Host, config.Config.Lobby.Port)
 				if err != nil {
-					p.Kick(text.Red()("We had an error connecting you to a lobby"))
-					log.Err().Str("username", p.Identity().DisplayName).Err(err).Msg("Player failed to connect to lobby")
+					log.DefaultLogger.Warn(conn.Identity().DisplayName + " failed to connect to a lobby.")
+					p.KickOrFallback(text.Red()("We had an error connecting you to a lobby"))
 				}
 			}
 		}()
@@ -86,21 +90,21 @@ func (vastlex *Structure) Config() config.Structure {
 
 // ...
 func (vastlex *Structure) Motd() string {
-	return vastlex.listener.ServerName
+	return vastlex.listener.Motd()
 }
 
 // ...
 func (vastlex *Structure) SetMotd(motd string) {
-	vastlex.listener.ServerName = motd
+	vastlex.listener.SetMotd(motd)
 }
 
 // ...
-func (vastlex *Structure) Players() map[string]Player {
+func (vastlex *Structure) Players() map[string]interfaces.Player {
 	return vastlex.players
 }
 
 // ...
-func (vastlex *Structure) GetPlayer(username string) (Player, error) {
+func (vastlex *Structure) GetPlayer(username string) (interfaces.Player, error) {
 	if vastlex.players[username] != nil {
 		return vastlex.players[username], nil
 	} else {
