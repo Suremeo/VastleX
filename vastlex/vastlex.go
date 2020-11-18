@@ -68,7 +68,7 @@ func Start() (err error) {
 				err = p.Send(config.Config.Lobby.Host, config.Config.Lobby.Port)
 				if err != nil {
 					log.DefaultLogger.Warn(conn.Identity().DisplayName + " failed to connect to a lobby.")
-					p.KickOrFallback(text.Red()("We had an error connecting you to a lobby"))
+					p.KickOrFallback(text.Colourf("<red>We had an error connecting you to a lobby</red>"))
 				}
 			}
 		}()

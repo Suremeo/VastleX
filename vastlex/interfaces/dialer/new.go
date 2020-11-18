@@ -50,7 +50,7 @@ func Connect(player interfaces.InternalPlayer, address string, port int) error {
 	dialer.HandleEvent(&events.Close{}, func() {
 		log.DefaultLogger.Debug("Remote connection for " + player.Identity().DisplayName + " on " + fmt.Sprintf("%v:%v", address, port) + " was closed.")
 		if !dialer.leaving {
-			dialer.player.KickOrFallback(text.Red()("We had an error connecting you to a lobby"))
+			dialer.player.KickOrFallback(text.Colourf("<red>We had an error connecting you to a lobby</red>"))
 		}
 	})
 	log.DefaultLogger.Debug(player.Identity().DisplayName + " connected to " + fmt.Sprintf("%v:%v", address, port))

@@ -1,13 +1,15 @@
 package minecraft
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
-	"github.com/sandertv/gophertunnel/minecraft/protocol/login/jwt"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"gopkg.in/square/go-jose.v2"
+	"gopkg.in/square/go-jose.v2/jwt"
 	"net"
 )
 
@@ -33,22 +35,16 @@ func (connection *Connection) ClientData() login.ClientData {
 // handshake packet to the client and enables encryption after that.
 func (connection *Connection) enableEncryption(clientPublicKey *ecdsa.PublicKey) error {
 	connection.expect(packet.IDClientToServerHandshake)
-	pubKey := jwt.MarshalPublicKey(&connection.privateKey.PublicKey)
-	header := jwt.Header{
-		Algorithm: "ES384",
-		X5U:       pubKey,
-	}
-	payload := map[string]interface{}{
-		"salt": base64.StdEncoding.EncodeToString(connection.salt),
-	}
-
+	signer, _ := jose.NewSigner(jose.SigningKey{Key: connection.privateKey, Algorithm: jose.ES384}, &jose.SignerOptions{
+		ExtraHeaders: map[jose.HeaderKey]interface{}{"x5u": login.MarshalPublicKey(&connection.privateKey.PublicKey)},
+	})
 	// We produce an encoded JWT using the header and payload above, then we send the JWT in a ServerToClient-
 	// Handshake packet so that the client can initialise encryption.
-	serverJWT, err := jwt.New(header, payload, connection.privateKey)
+	serverJWT, err := jwt.Signed(signer).Claims(saltClaims{Salt: base64.RawStdEncoding.EncodeToString(connection.salt)}).CompactSerialize()
 	if err != nil {
-		return fmt.Errorf("error creating encoded JWT: %v", err)
+		return fmt.Errorf("compact serialise server JWT: %w", err)
 	}
-	if err := connection.WritePacket(&packet.ServerToClientHandshake{JWT: serverJWT}); err != nil {
+	if err := connection.WritePacket(&packet.ServerToClientHandshake{JWT: []byte(serverJWT)}); err != nil {
 		return fmt.Errorf("error sending ServerToClientHandshake packet: %v", err)
 	}
 	// Flush immediately as we'll enable encryption after this.
@@ -56,7 +52,9 @@ func (connection *Connection) enableEncryption(clientPublicKey *ecdsa.PublicKey)
 
 	// We first compute the shared secret.
 	x, _ := clientPublicKey.Curve.ScalarMult(clientPublicKey.X, clientPublicKey.Y, connection.privateKey.D.Bytes())
-	sharedSecret := x.Bytes()
+
+	sharedSecret := append(bytes.Repeat([]byte{0}, 48-len(x.Bytes())), x.Bytes()...)
+
 	keyBytes := sha256.Sum256(append(connection.salt, sharedSecret...))
 
 	// Finally we enable encryption for the encoder and decoder using the secret key bytes we produced.

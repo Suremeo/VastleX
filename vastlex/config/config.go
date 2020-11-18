@@ -106,7 +106,7 @@ func DefaultConfig() Structure {
 			MaxPlayers  int
 		}{
 			Auth:        true,
-			Motd:        text.Bold()(text.Red()("Vastle")) + text.Bold()(text.White()("X")),
+			Motd:        text.Colourf("<red>Vastle</red><white><bold>X</bold></white>"),
 			ShowVersion: false,
 			MaxPlayers:  0,
 		},

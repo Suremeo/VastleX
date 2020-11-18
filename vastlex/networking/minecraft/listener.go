@@ -153,41 +153,26 @@ func (l *listener) handleConnection(conn *Connection) {
 
 // handleLogin handles a login packet from a player.
 func (connection *Connection) handleLogin(pk *packet.Login) error {
-	// The next expected packet is a response from the client to the handshake.
+	identityData, clientData, authResult, err := login.Parse(pk.ConnectionRequest)
+	if err != nil {
+		return fmt.Errorf("parse login request: %w", err)
+	}
+	connection.identityData = &identityData
+	connection.clientData = &clientData
+	if !authResult.XBOXLiveAuthenticated && config.Config.Minecraft.Auth {
+		_ = connection.WritePacket(&packet.Disconnect{Message: text.Colourf("<red>You must be logged in with XBOX Live to join.</red>")})
+		_ = connection.Close()
+		return fmt.Errorf("connection %v was not authenticated to XBOX Live", connection.RemoteAddr())
+	}
 	if pk.ClientProtocol != protocol.CurrentProtocol {
-		// By default we assume the client is outdated.
 		status := packet.PlayStatusLoginFailedClient
 		if pk.ClientProtocol > protocol.CurrentProtocol {
-			// The server is outdated in this case, so we have to change the status we send.
 			status = packet.PlayStatusLoginFailedServer
 		}
 		_ = connection.WritePacket(&packet.PlayStatus{Status: status})
 		return fmt.Errorf("%v connected with an incompatible protocol: expected protocol = %v, client protocol = %v", connection.identityData.DisplayName, protocol.CurrentProtocol, pk.ClientProtocol)
 	}
-
-	publicKey, authenticated, err := login.Verify(pk.ConnectionRequest)
-	if err != nil {
-		return fmt.Errorf("error verifying login request: %v", err)
-	}
-	if !authenticated && config.Config.Minecraft.Auth {
-		_ = connection.WritePacket(&packet.Disconnect{Message: text.Red()("You must be logged in with XBOX Live to join.")})
-		return fmt.Errorf("connection %v was not authenticated to XBOX Live", connection.net.RemoteAddr())
-	}
-	id, cd, err := login.Decode(pk.ConnectionRequest)
-	connection.identityData = &id
-	connection.clientData = &cd
-	if err != nil {
-		return fmt.Errorf("error decoding login request: %v", err)
-	}
-	// First validate the identity data and the client data to ensure we're working with valid data. Mojang
-	// might change this data, or some custom client might fiddle with the data, so we can never be too sure.
-	if err := id.Validate(); err != nil {
-		return fmt.Errorf("invalid identity data: %v", err)
-	}
-	if err := cd.Validate(); err != nil {
-		return fmt.Errorf("invalid client data: %v", err)
-	}
-	if err := connection.enableEncryption(publicKey); err != nil {
+	if err := connection.enableEncryption(authResult.PublicKey); err != nil {
 		return fmt.Errorf("error enabling encryption: %v", err)
 	}
 	return nil

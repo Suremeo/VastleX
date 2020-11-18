@@ -92,7 +92,7 @@ func (player *Player) listenPackets() {
 // Kick kicks the player from the server using the provided message.
 func (player *Player) Kick(reason ...string) {
 	if len(reason) == 0 {
-		reason = []string{text.Red()("No reason provided")}
+		reason = []string{text.Colourf("<red>No reason provided</red>")}
 	}
 	_ = player.WritePacket(&packet.Disconnect{Message: strings.Join(reason, "\n")})
 	time.Sleep(time.Second / 20 * 2)
@@ -107,16 +107,16 @@ func (player *Player) Message(msg string) error {
 // KickOrFallback attempts to connect the player to the fallback server (If enabled), if it is unable to connect it kicks the player using the provided message.
 func (player *Player) KickOrFallback(msg string) {
 	if player.onFallback {
-		player.Kick(text.Red()("The fallback server went down."))
+		player.Kick(text.Colourf("<red>The fallback server went down.</red>"))
 		return
 	}
 	if config.Config.Fallback.Enabled {
 		err := player.Send(config.Config.Fallback.Host, config.Config.Fallback.Port)
 		if err != nil {
-			player.Kick(text.Red()("Unable to connect you to a fallback server."))
+			player.Kick(text.Colourf("<red>Unable to connect you to a fallback server.</red>"))
 		} else {
 			player.onFallback = true
-			_ = player.Message(text.Red()("Oof! The server you were on went down, so you were connected to a fallback server."))
+			_ = player.Message(text.Colourf("<red>Oof! The server you were on went down, so you were connected to a fallback server.</red>"))
 		}
 	} else {
 		player.Kick(msg)

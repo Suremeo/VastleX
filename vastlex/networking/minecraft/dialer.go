@@ -1,19 +1,19 @@
 package minecraft
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/events"
 	"github.com/sandertv/go-raknet"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
-	"github.com/sandertv/gophertunnel/minecraft/protocol/login/jwt"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"gopkg.in/square/go-jose.v2/jwt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -99,45 +99,33 @@ func (connection *Connection) handlePackets() {
 
 // handleServerToClientHandshake handles the handleServerToClientHandshake packet.
 func (connection *Connection) handleServerToClientHandshake(pk *packet.ServerToClientHandshake) error {
-	headerData, err := jwt.HeaderFrom(pk.JWT)
+	tok, err := jwt.ParseSigned(string(pk.JWT))
 	if err != nil {
-		return fmt.Errorf("error reading ServerToClientHandshake JWT header: %v", err)
+		return fmt.Errorf("parse server token: %w", err)
 	}
-	header := &jwt.Header{}
-	if err := json.Unmarshal(headerData, header); err != nil {
-		return fmt.Errorf("error parsing ServerToClientHandshake JWT header JSON: %v", err)
+	//lint:ignore S1005 Double assignment is done explicitly to prevent panics.
+	raw, _ := tok.Headers[0].ExtraHeaders["x5u"]
+	kStr, _ := raw.(string)
+
+	pub := new(ecdsa.PublicKey)
+	if err := login.ParsePublicKey(kStr, pub); err != nil {
+		return fmt.Errorf("parse server public key: %w", err)
 	}
-	if !jwt.AllowedAlg(header.Algorithm) {
-		return fmt.Errorf("ServerToClientHandshake JWT header had unexpected alg: expected %v, got %v", "ES384", header.Algorithm)
+
+	var c saltClaims
+	if err := tok.Claims(pub, &c); err != nil {
+		return fmt.Errorf("verify claims: %w", err)
 	}
-	// First parse the public pubKey, so that we can use it to verify the entire JWT afterwards. The JWT is self-
-	// signed by the server.
-	pubKey := &ecdsa.PublicKey{}
-	if err := jwt.ParsePublicKey(header.X5U, pubKey); err != nil {
-		return fmt.Errorf("error parsing ServerToClientHandshake header x5u public pubKey: %v", err)
-	}
-	if _, err := jwt.Verify(pk.JWT, pubKey, false); err != nil {
-		return fmt.Errorf("error verifying ServerToClientHandshake JWT: %v", err)
-	}
-	// We already know the JWT is valid as we verified it, so no need to error check.
-	body, _ := jwt.Payload(pk.JWT)
-	m := make(map[string]string)
-	if err := json.Unmarshal(body, &m); err != nil {
-		return fmt.Errorf("error parsing ServerToClientHandshake JWT payload JSON: %v", err)
-	}
-	b64Salt, ok := m["salt"]
-	if !ok {
-		return fmt.Errorf("ServerToClientHandshake JWT payload contained no 'salt'")
-	}
-	// Some (faulty) JWT implementations use padded base64, whereas it should be raw. We trim this off.
-	b64Salt = strings.TrimRight(b64Salt, "=")
-	salt, err := base64.RawStdEncoding.DecodeString(b64Salt)
+	c.Salt = strings.TrimRight(c.Salt, "=")
+	salt, err := base64.RawStdEncoding.DecodeString(c.Salt)
 	if err != nil {
 		return fmt.Errorf("error base64 decoding ServerToClientHandshake salt: %v", err)
 	}
 
-	x, _ := pubKey.Curve.ScalarMult(pubKey.X, pubKey.Y, connection.privateKey.D.Bytes())
-	sharedSecret := x.Bytes()
+	x, _ := pub.Curve.ScalarMult(pub.X, pub.Y, connection.privateKey.D.Bytes())
+	// Make sure to pad the shared secret up to 96 bytes.
+	sharedSecret := append(bytes.Repeat([]byte{0}, 48-len(x.Bytes())), x.Bytes()...)
+
 	keyBytes := sha256.Sum256(append(salt, sharedSecret...))
 
 	// Finally we enable encryption for the enc and dec using the secret pubKey bytes we produced.
@@ -146,6 +134,11 @@ func (connection *Connection) handleServerToClientHandshake(pk *packet.ServerToC
 
 	// We write a ClientToServerHandshake packet (which has no payload) as a response.
 	return connection.WritePacket(&packet.ClientToServerHandshake{})
+}
+
+// saltClaims holds the claims for the salt sent by the server in the ServerToClientHandshake packet.
+type saltClaims struct {
+	Salt string `json:"salt"`
 }
 
 var regex = regexp.MustCompile(`[^\\];`)
