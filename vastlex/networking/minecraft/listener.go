@@ -1,0 +1,194 @@
+package minecraft
+
+import (
+	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"fmt"
+	"github.com/VastleLLC/VastleX/vastlex/config"
+	"github.com/sandertv/go-raknet"
+	"github.com/sandertv/gophertunnel/minecraft/protocol"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+	"github.com/sandertv/gophertunnel/minecraft/text"
+	"go.uber.org/atomic"
+	"net"
+	"sync"
+)
+
+// Listener represents an instance of the proxy listening for connecting players.
+type Listener interface {
+	SetMotd(string)
+	Motd() string
+	Accept() Player
+	SetPlayerCount(int)
+	PlayerCount() int
+}
+
+var _ Listener = &listener{}
+
+// listener is an internal structure for the default listener.
+type listener struct {
+	motd *atomic.String
+	net *raknet.Listener
+	mutex sync.Mutex
+	count *atomic.Int32
+	incoming chan *Connection
+	key *ecdsa.PrivateKey
+}
+
+// Listen listens for new connections on the address specified in the configuration.
+func Listen() (_ Listener, err error) {
+	listener := &listener{
+		motd: atomic.NewString(config.Config.Minecraft.Motd),
+		count: atomic.NewInt32(0),
+		incoming: make(chan *Connection),
+	}
+	listener.key, _ = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	listener.net, err = raknet.Listen(fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
+	if err == nil {
+		listener.updatePongData()
+		go func() {
+			for {
+				c, err := listener.net.Accept()
+				if err != nil {
+					panic(err) // We panic because listener should never be closed and if it is something is really messed up.
+				}
+				if listener.count.Load() > int32(config.Config.Minecraft.MaxPlayers) && config.Config.Minecraft.MaxPlayers != 0 {
+					// The server is full.
+					conn := &Connection{net: c, encoder: packet.NewEncoder(c), closed: make(chan struct{}), writeBuffer: bytes.NewBuffer(make([]byte, 0, 4096))}
+					_ = conn.WritePacket(&packet.PlayStatus{Status: packet.PlayStatusLoginFailedServerFull})
+					_ = conn.Flush()
+					conn = nil
+					_ = c.Close()
+				} else {
+					listener.count.Add(1)
+					listener.updatePongData()
+					go listener.handleConnection(initializeConnection(c, listener.key, connectionTypePlayer))
+				}
+			}
+		}()
+	}
+	return listener, err
+}
+
+// updatePongData updates the pong data of the listener using the current only players, maximum players and motd for the proxy.
+func (l *listener) updatePongData() {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	current := l.count.Load()
+	max := config.Config.Minecraft.MaxPlayers
+	if max == 0 {
+		max = int(current + 1)
+	}
+	var ver string
+	if config.Config.Minecraft.ShowVersion {
+		ver = protocol.CurrentVersion
+	}
+
+	l.net.PongData([]byte(fmt.Sprintf("MCPE;%v;%v;%v;%v;%v;%v;Minecraft Server;%v;%v;%v;%v;",
+		l.Motd(), protocol.CurrentProtocol, ver, current, max, l.net.ID(),
+		"Creative", 1, l.net.Addr().(*net.UDPAddr).Port, l.net.Addr().(*net.UDPAddr).Port,
+	)))
+}
+
+// SetMotd updates the MOTD for the listener.
+func (l *listener) SetMotd(s string) {
+	l.motd.Store(s)
+}
+
+// Motd returns the MOTD for the listener.
+func (l *listener) Motd() string {
+	return l.motd.Load()
+}
+
+// Accept accepts a new connection from the listener.
+func (l *listener) Accept() Player {
+	return <-l.incoming
+}
+
+// SetPlayerCount manually sets the player count of the proxy.
+func (l *listener) SetPlayerCount(count int) {
+	l.count.Store(int32(count))
+}
+
+// PlayerCount returns the player count of the proxy.
+func (l *listener) PlayerCount() int {
+	return int(l.count.Load())
+}
+
+// handleConnection handles an incoming connection of the Listener. It will first attempt to get the connection to
+// log in, after which it will expose packets received to the user.
+func (l *listener) handleConnection(conn *Connection) {
+	defer func() {
+		_ = conn.Close()
+		l.count.Add(-1)
+		l.updatePongData()
+	}()
+	conn.expect(packet.IDLogin)
+	for {
+		// We finally arrived at the packet decoding loop. We constantly decode packets that arrive
+		// and push them to the Conn so that they may be processed.
+		packets, err := conn.decoder.Decode()
+		if err != nil {
+			if !raknet.ErrConnectionClosed(err) {
+
+			}
+			return
+		}
+		for _, data := range packets {
+			loggedInBefore := conn.loggedIn.Load()
+			if err := conn.receive(data); err != nil {
+				println(err.Error())
+				return
+			}
+			if !loggedInBefore && conn.loggedIn.Load() {
+				l.incoming <- conn
+			}
+		}
+	}
+}
+
+// handleLogin handles a login packet from a player.
+func (connection *Connection) handleLogin(pk *packet.Login) error {
+	// The next expected packet is a response from the client to the handshake.
+	if pk.ClientProtocol != protocol.CurrentProtocol {
+		// By default we assume the client is outdated.
+		status := packet.PlayStatusLoginFailedClient
+		if pk.ClientProtocol > protocol.CurrentProtocol {
+			// The server is outdated in this case, so we have to change the status we send.
+			status = packet.PlayStatusLoginFailedServer
+		}
+		_ = connection.WritePacket(&packet.PlayStatus{Status: status})
+		return fmt.Errorf("%v connected with an incompatible protocol: expected protocol = %v, client protocol = %v", connection.identityData.DisplayName, protocol.CurrentProtocol, pk.ClientProtocol)
+	}
+
+	publicKey, authenticated, err := login.Verify(pk.ConnectionRequest)
+	if err != nil {
+		return fmt.Errorf("error verifying login request: %v", err)
+	}
+	if !authenticated && config.Config.Minecraft.Auth {
+		_ = connection.WritePacket(&packet.Disconnect{Message: text.Red()("You must be logged in with XBOX Live to join.")})
+		return fmt.Errorf("connection %v was not authenticated to XBOX Live", connection.net.RemoteAddr())
+	}
+	id, cd, err := login.Decode(pk.ConnectionRequest)
+	connection.identityData = &id
+	connection.clientData = &cd
+	if err != nil {
+		return fmt.Errorf("error decoding login request: %v", err)
+	}
+	// First validate the identity data and the client data to ensure we're working with valid data. Mojang
+	// might change this data, or some custom client might fiddle with the data, so we can never be too sure.
+	if err := id.Validate(); err != nil {
+		return fmt.Errorf("invalid identity data: %v", err)
+	}
+	if err := cd.Validate(); err != nil {
+		return fmt.Errorf("invalid client data: %v", err)
+	}
+	if err := connection.enableEncryption(publicKey); err != nil {
+		return fmt.Errorf("error enabling encryption: %v", err)
+	}
+	return nil
+}

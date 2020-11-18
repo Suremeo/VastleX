@@ -1,0 +1,6 @@
+.testing/
+.idea/
+*.exe
+*.exe~
+*.~
+maintest.go
