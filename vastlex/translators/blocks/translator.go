@@ -24,7 +24,6 @@ func TranslatePacket(pk packet.Packet, store1, store2 *Store) {
 		case packet.SoundEventBreakBlock:
 			pk.ExtraData = int32(store1.RuntimeFromHash(store2.HashFromRuntime(int64(pk.ExtraData))))
 		}
-		break
 	case *packet.LevelEvent:
 		switch pk.EventType {
 		case packet.EventParticleDestroy:
@@ -36,6 +35,5 @@ func TranslatePacket(pk packet.Packet, store1, store2 *Store) {
 		case packet.EventBlockStopBreak:
 			pk.EventData = int32(store1.RuntimeFromHash(store2.HashFromRuntime(int64(pk.EventData))))
 		}
-		break
 	}
 }
