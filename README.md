@@ -16,7 +16,7 @@
 - [ ] Socket system for inter-communication between servers
 
 #### Also....
-We have tested PMMP, Dragonfly, Nukkit and all have worked flawlessly transferring between servers and such.
+We have tested PMMP, Dragonfly, Nukkit, MiNET and all have worked flawlessly transferring between servers and such.
 Below you can find our list of official plugins to add **VastleX** features to server softwares.
 
 ##### Plugins
