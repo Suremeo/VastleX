@@ -133,9 +133,6 @@ func (l *listener) handleConnection(conn *Connection) {
 		// and push them to the Conn so that they may be processed.
 		packets, err := conn.decoder.Decode()
 		if err != nil {
-			if !raknet.ErrConnectionClosed(err) {
-
-			}
 			return
 		}
 		for _, data := range packets {

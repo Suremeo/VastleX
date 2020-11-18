@@ -80,8 +80,9 @@ func (connection *Connection) handlePackets() {
 		if err != nil {
 			if !raknet.ErrConnectionClosed(err) {
 
+			} else {
+				return
 			}
-			return
 		}
 		for _, data := range packets {
 			loggedInBefore := connection.loggedIn.Load()

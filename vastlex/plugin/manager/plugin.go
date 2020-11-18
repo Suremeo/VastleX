@@ -12,18 +12,18 @@ var Indexes map[string]int
 var Mutex sync.Mutex
 
 type Plugin struct {
-	Name           string
-	Version        int
-	encoder        *actions.Encoder
-	decoder        *actions.Decoder
-	cmd            *exec.Cmd
-	close          *sync.Once
-	packetsHandled []int16
+	Name    string
+	Version int
+	encoder *actions.Encoder
+	decoder *actions.Decoder
+	cmd     *exec.Cmd
+	close   *sync.Once
+	//	packetsHandled []int16
 }
 
 func New(cmd *exec.Cmd) (*Plugin, error) {
 	Mutex.Lock()
-	defer Mutex.Lock()
+	defer Mutex.Unlock()
 	out, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -32,14 +32,16 @@ func New(cmd *exec.Cmd) (*Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Plugin{
+	p := &Plugin{
 		Name:    "Unknown",
 		Version: 0,
 		encoder: actions.NewEncoder(out),
 		decoder: actions.NewDecoder(in),
 		cmd:     cmd,
 		close:   &sync.Once{},
-	}, nil
+	}
+	go p.readActions()
+	return p, nil
 }
 
 func WriteAll(action actions.Action) {

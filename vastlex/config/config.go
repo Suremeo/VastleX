@@ -60,9 +60,8 @@ func LoadConfig() (config Structure) {
 	if err != nil {
 		config = DefaultConfig()
 		err = createDefaultConfig()
-		//log.FatalError("Failed to create default configuration", err)
+		log.DefaultLogger.Fatal(err)
 	}
-	//log.Debugging = config.Debug.Logging
 	log.DefaultLogger.SetDebug(config.Debug.Logging)
 	if config.Minecraft.MaxPlayers != 0 {
 		log.MaxPlayerSuffix = fmt.Sprintf("/%v", config.Minecraft.MaxPlayers)
