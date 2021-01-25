@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
-	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/events"
+	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/minecraftevents"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -24,10 +24,10 @@ type Conn interface {
 	Close() error
 
 	// OnEvent only executes once and returns when the event happens.
-	OnEvent(events.Event, interface{}) chan struct{}
+	OnEvent(minecraftevents.Event, interface{}) chan struct{}
 
 	// HandleEvent is called whenever an event happens.
-	HandleEvent(events.Event, interface{})
+	HandleEvent(minecraftevents.Event, interface{})
 }
 
 // Connection represents all types of raknet connections.
@@ -48,14 +48,18 @@ type Connection struct {
 	clientData   *login.ClientData
 
 	eventMutex sync.Mutex
-	events     map[int]map[int]map[int]interface{}
+	events     map[minecraftevents.EventId]map[int]map[int]interface{}
 	packets    chan *packetData
 
 	deferredPackets      []*packetData
 	deferredPacketsMutex sync.Mutex
 	expected             atomic.Value
 
+	shieldID *atomic.Int32
+
 	loggedIn atomic.Bool
+	authResult atomic.Bool
+	Pool packet.Pool
 }
 
 const (
@@ -75,7 +79,9 @@ func initializeConnection(conn net.Conn, key *ecdsa.PrivateKey, connectionType b
 		privateKey:     key,
 		writeBuffer:    bytes.NewBuffer(make([]byte, 0, 4096)),
 		closed:         make(chan struct{}),
-		events:         make(map[int]map[int]map[int]interface{}),
+		events:         make(map[minecraftevents.EventId]map[int]map[int]interface{}),
+		shieldID:       atomic.NewInt32(0),
+		Pool:           packet.NewPool(),
 	}
 	connection.expected.Store([]uint32{})
 	_, _ = rand.Read(connection.salt)
@@ -98,7 +104,7 @@ func (connection *Connection) Close() error {
 	connection.close.Do(func() {
 		close(connection.closed)
 		err = connection.net.Close()
-		connection.executeEvent(&events.Close{})
+		connection.executeEvent(&minecraftevents.Close{})
 	})
 	return err
 }
@@ -115,7 +121,7 @@ func (connection *Connection) WritePacket(pk packet.Packet) error {
 	header := &packet.Header{PacketID: pk.ID()}
 	_ = header.Write(connection.writeBuffer)
 
-	pk.Marshal(protocol.NewWriter(connection.writeBuffer))
+	pk.Marshal(protocol.NewWriter(connection.writeBuffer, connection.shieldID.Load()))
 	connection.bufferedWrites = append(connection.bufferedWrites, append([]byte(nil), connection.writeBuffer.Bytes()...))
 	connection.writeBuffer.Reset()
 	return nil
@@ -137,6 +143,14 @@ func (connection *Connection) ReadPacket() (packet.Packet, error) {
 		pk, err := data.decode()
 		if err != nil {
 			return connection.ReadPacket()
+		}
+		if pk.ID() == packet.IDStartGame {
+			for _, item := range pk.(*packet.StartGame).Items {
+				if item.Name == "minecraft:shield" {
+					connection.shieldID.Store(int32(item.RuntimeID))
+					connection.Pool[packet.IDStartGame] = &packet.StartGame{}
+				}
+			}
 		}
 		return pk, nil
 	}
@@ -163,7 +177,7 @@ func (connection *Connection) Flush() error {
 }
 
 // OnEvent handles an event once and returns a channel of when the event is called.
-func (connection *Connection) OnEvent(event events.Event, function interface{}) chan struct{} {
+func (connection *Connection) OnEvent(event minecraftevents.Event, function interface{}) chan struct{} {
 	connection.eventMutex.Lock()
 	defer connection.eventMutex.Unlock()
 	if connection.events[event.ID()] == nil {
@@ -186,7 +200,7 @@ func (connection *Connection) OnEvent(event events.Event, function interface{}) 
 }
 
 // HandleEvent registers a handler for an event.
-func (connection *Connection) HandleEvent(event events.Event, function interface{}) {
+func (connection *Connection) HandleEvent(event minecraftevents.Event, function interface{}) {
 	connection.eventMutex.Lock()
 	defer connection.eventMutex.Unlock()
 	if connection.events[event.ID()] == nil {
@@ -198,7 +212,7 @@ func (connection *Connection) HandleEvent(event events.Event, function interface
 }
 
 // executeEvent executes an event so that it is handled by all the event handlers.
-func (connection *Connection) executeEvent(event events.Event, args ...interface{}) {
+func (connection *Connection) executeEvent(event minecraftevents.Event, args ...interface{}) {
 	connection.eventMutex.Lock()
 	defer connection.eventMutex.Unlock()
 	if connection.events[event.ID()] != nil {
@@ -238,7 +252,7 @@ func (connection *Connection) takePushedBackPacket() (*packetData, bool) {
 // receive receives an incoming serialised packet from the underlying connection. If the connection is not yet
 // logged in, the packet is immediately handled.
 func (connection *Connection) receive(data []byte) error {
-	pkData, err := parseData(data)
+	pkData, err := parseData(data, connection)
 	if err != nil {
 		return err
 	}
@@ -331,7 +345,7 @@ func (connection *Connection) handleResourcePacksInfo(pk *packet.ResourcePacksIn
 // that resource packs are applied in.
 func (connection *Connection) handleResourcePackStack(pk *packet.ResourcePackStack) error {
 	connection.loggedIn.Store(true)
-	connection.executeEvent(&events.Login{})
+	connection.executeEvent(&minecraftevents.Login{})
 	return connection.WritePacket(&packet.ResourcePackClientResponse{Response: packet.PackResponseCompleted})
 }
 
@@ -350,7 +364,13 @@ func (connection *Connection) handleResourcePackClientResponse(pk *packet.Resour
 		}
 		connection.expect(packet.IDResourcePackClientResponse)
 	case packet.PackResponseCompleted:
-		connection.loggedIn.Store(true)
+		if connection.authResult.Load() {
+			connection.loggedIn.Store(true)
+		} else {
+			_ = connection.WritePacket(&packet.Disconnect{Message: "Big hacker"})
+			_ = connection.Flush()
+			_ = connection.Close()
+		}
 	default:
 		return fmt.Errorf("unknown resource pack client response: %v", pk.Response)
 	}

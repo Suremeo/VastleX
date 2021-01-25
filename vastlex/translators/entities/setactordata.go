@@ -1,6 +1,8 @@
 package entities
 
-import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+import (
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+)
 
 type SetActorData struct{}
 

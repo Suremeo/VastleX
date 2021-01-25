@@ -3,5 +3,6 @@
 *.exe
 *.exe~
 *.~
+*.pb.go
 maintest.go
 VastleX-Linux

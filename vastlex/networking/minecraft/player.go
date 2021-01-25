@@ -17,7 +17,7 @@ import (
 type Player interface {
 	Conn
 	Identity() login.IdentityData
-	ClientData() login.ClientData
+	Client() login.ClientData
 	RemoteAddr() net.Addr
 }
 
@@ -26,8 +26,8 @@ func (connection *Connection) Identity() login.IdentityData {
 	return *connection.identityData
 }
 
-// ClientData returns the login.ClientData of the Player.
-func (connection *Connection) ClientData() login.ClientData {
+// Client returns the login.ClientData of the Player.
+func (connection *Connection) Client() login.ClientData {
 	return *connection.clientData
 }
 

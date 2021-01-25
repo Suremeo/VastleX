@@ -1,6 +1,8 @@
 package dialer
 
-import "github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+import (
+	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
+)
 
 func handleAddPlayer(dialer *Dialer, pak packet.Packet) {
 	s := pak.(*packet.AddPlayer).EntityUniqueID

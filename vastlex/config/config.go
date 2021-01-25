@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-var Config = LoadConfig()
+var Config Structure = Structure{}
 
 // Config is a parsed configuration file for the proxy.
 type Structure struct {
@@ -47,7 +47,6 @@ type Structure struct {
 				Address string
 			}
 		}
-		BlockTranslating bool
 	}
 	Security struct {
 		Secret string
@@ -66,6 +65,7 @@ func LoadConfig() (config Structure) {
 	if config.Minecraft.MaxPlayers != 0 {
 		log.MaxPlayerSuffix = fmt.Sprintf("/%v", config.Minecraft.MaxPlayers)
 	}
+	Config = config
 	return config
 }
 
@@ -139,10 +139,7 @@ func DefaultConfig() Structure {
 					Address string
 				}
 			}
-			BlockTranslating bool
-		}{
-			BlockTranslating: true,
-		},
+		}{},
 		Security: struct {
 			Secret string
 		}{

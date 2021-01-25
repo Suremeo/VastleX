@@ -8,7 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/events"
+	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/minecraftevents"
 	"github.com/sandertv/go-raknet"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
@@ -62,7 +62,7 @@ func Dial(identity login.IdentityData, client login.ClientData, address string) 
 	case <-conn.closed:
 		// The connection was closed before we even were fully 'connected', so we return an error.
 		return nil, fmt.Errorf("connection timeout")
-	case <-conn.OnEvent(&events.Login{}, func() {}):
+	case <-conn.OnEvent(&minecraftevents.Login{}, func() {}):
 		// We've connected successfully. We return the connection and no error.
 		return conn, nil
 	}
@@ -91,7 +91,7 @@ func (connection *Connection) handlePackets() {
 				return
 			}
 			if !loggedInBefore && connection.loggedIn.Load() {
-				connection.executeEvent(&events.Login{})
+				connection.executeEvent(&minecraftevents.Login{})
 			}
 		}
 	}

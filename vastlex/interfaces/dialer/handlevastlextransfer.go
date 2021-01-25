@@ -11,10 +11,8 @@ import (
 func handleVastleXTransfer(dialer *Dialer, pak packet.Packet) {
 	pk := pak.(*custompackets.VastleXTransfer)
 	log.DefaultLogger.Info(fmt.Sprintf("VastleX transfer was called | IP: %v | PORT: %v", pk.Host, pk.Port))
-	dialer.leaving = true
 	err := dialer.player.Send(pk.Host, int(pk.Port))
 	if err != nil {
 		log.DefaultLogger.Error(err)
-		dialer.leaving = false
 	}
 }

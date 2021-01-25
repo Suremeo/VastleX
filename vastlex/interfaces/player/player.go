@@ -5,7 +5,6 @@ import (
 	"github.com/VastleLLC/VastleX/vastlex/interfaces"
 	"github.com/VastleLLC/VastleX/vastlex/interfaces/dialer"
 	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft"
-	"github.com/VastleLLC/VastleX/vastlex/translators/blocks"
 	"github.com/VastleLLC/VastleX/vastlex/translators/entities"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 	"github.com/sandertv/gophertunnel/minecraft/text"
@@ -16,26 +15,29 @@ import (
 // ...
 type Player struct {
 	minecraft.Player
-	config      *config.Player
-	dialer      interfaces.Dialer
-	state       interfaces.State
-	blocks      *blocks.Store
+	config *config.Player
+	dialer interfaces.Dialer
+	state  interfaces.State
+
 	chunkradius int32
 	onFallback  bool
-}
-
-// Blocks returns the block store for the player (Used for translating block runtime ids).
-func (player *Player) Blocks() *blocks.Store {
-	return player.blocks
 }
 
 // Send connects the player to the provided server.
 func (player *Player) Send(ip string, port int) error {
 	player.onFallback = false
-	if player.state != interfaces.StateWaitingForFirstServer {
-		player.state = interfaces.StateWaitingForNewServer
+	old := player.State()
+	//if player.state != interfaces.StateWaitingForFirstServer {
+	//	player.state = interfaces.StateWaitingForNewServer
+	//}
+	err := dialer.Connect(player, ip, port)
+	if err != nil {
+		_ = player.Message(text.Colourf("<red>An unknown error occured while transferring you...</red>"))
+		player.SetState(old)
+	} else {
+		player.SetState(interfaces.StateConnected)
 	}
-	return dialer.Connect(player, ip, port)
+	return err
 }
 
 // Config returns the configuration for the player.
@@ -79,9 +81,6 @@ func (player *Player) listenPackets() {
 			if Handles[pk.ID()] != nil {
 				Handles[pk.ID()](player, pk)
 			}
-			if config.Config.Debug.BlockTranslating {
-				blocks.TranslatePacket(pk, player.dialer.Blocks(), player.Blocks())
-			}
 			entities.Pool[pk.ID()]().Translate(pk, 1, int64(player.dialer.EntityId()), 1, int64(player.dialer.UniqueId()))
 			_ = player.dialer.WritePacket(pk)
 		}
@@ -95,7 +94,7 @@ func (player *Player) Kick(reason ...string) {
 		reason = []string{text.Colourf("<red>No reason provided</red>")}
 	}
 	_ = player.WritePacket(&packet.Disconnect{Message: strings.Join(reason, "\n")})
-	time.Sleep(time.Second / 20 * 2)
+	time.Sleep(1*time.Second)
 	_ = player.Close()
 }
 

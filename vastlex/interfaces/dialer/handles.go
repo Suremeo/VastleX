@@ -12,5 +12,8 @@ var Handles = map[uint32]func(dialer *Dialer, pak packet.Packet){
 	packet.IDAddPlayer:              handleAddPlayer,
 	packet.IDAddItemActor:           handleAddItemActor,
 	packet.IDRemoveActor:            handleRemoveActor,
+	packet.IDPlayStatus:             handlePlayStatus,
+	packet.IDSetDisplayObjective:    handleSetDisplayObjective,
+	packet.IDRemoveObjective:        handleRemoveObjective,
 	custompackets.IDVastleXTransfer: handleVastleXTransfer,
 }

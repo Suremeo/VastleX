@@ -7,12 +7,15 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/VastleLLC/VastleX/vastlex/config"
+	log2 "github.com/VastleLLC/VastleX/vastlex/logging"
+	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/ddos"
 	"github.com/sandertv/go-raknet"
 	"github.com/sandertv/gophertunnel/minecraft/protocol"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"go.uber.org/atomic"
+	"log"
 	"net"
 	"sync"
 )
@@ -30,7 +33,6 @@ var _ Listener = &listener{}
 
 // listener is an internal structure for the default listener.
 type listener struct {
-	motd     *atomic.String
 	net      *raknet.Listener
 	mutex    sync.Mutex
 	count    *atomic.Int32
@@ -41,12 +43,12 @@ type listener struct {
 // Listen listens for new connections on the address specified in the configuration.
 func Listen() (_ Listener, err error) {
 	listener := &listener{
-		motd:     atomic.NewString(config.Config.Minecraft.Motd),
 		count:    atomic.NewInt32(0),
 		incoming: make(chan *Connection),
 	}
+	l := &raknet.ListenConfig{ErrorLog: log.New(&ddos.W{}, "", 0)}
 	listener.key, _ = ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	listener.net, err = raknet.Listen(fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
+	listener.net, err = l.Listen(fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
 	if err == nil {
 		listener.updatePongData()
 		go func() {
@@ -63,9 +65,11 @@ func Listen() (_ Listener, err error) {
 					conn = nil
 					_ = c.Close()
 				} else {
-					listener.count.Add(1)
-					listener.updatePongData()
-					go listener.handleConnection(initializeConnection(c, listener.key, connectionTypePlayer))
+					go func() {
+						listener.count.Add(1)
+						listener.updatePongData()
+						listener.handleConnection(initializeConnection(c, listener.key, connectionTypePlayer))
+					}()
 				}
 			}
 		}()
@@ -96,12 +100,12 @@ func (l *listener) updatePongData() {
 
 // SetMotd updates the MOTD for the listener.
 func (l *listener) SetMotd(s string) {
-	l.motd.Store(s)
+	config.Config.Minecraft.Motd = s
 }
 
 // Motd returns the MOTD for the listener.
 func (l *listener) Motd() string {
-	return l.motd.Load()
+	return text.Colourf(config.Config.Minecraft.Motd)
 }
 
 // Accept accepts a new connection from the listener.
@@ -138,7 +142,7 @@ func (l *listener) handleConnection(conn *Connection) {
 		for _, data := range packets {
 			loggedInBefore := conn.loggedIn.Load()
 			if err := conn.receive(data); err != nil {
-				println(err.Error())
+				log2.DefaultLogger.Error(err)
 				return
 			}
 			if !loggedInBefore && conn.loggedIn.Load() {
@@ -169,6 +173,7 @@ func (connection *Connection) handleLogin(pk *packet.Login) error {
 		_ = connection.WritePacket(&packet.PlayStatus{Status: status})
 		return fmt.Errorf("%v connected with an incompatible protocol: expected protocol = %v, client protocol = %v", connection.identityData.DisplayName, protocol.CurrentProtocol, pk.ClientProtocol)
 	}
+	connection.authResult.Store(true)
 	if err := connection.enableEncryption(authResult.PublicKey); err != nil {
 		return fmt.Errorf("error enabling encryption: %v", err)
 	}

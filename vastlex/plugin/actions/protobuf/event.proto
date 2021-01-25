@@ -1,0 +1,14 @@
+syntax = "proto3";
+package protobuf;
+
+option go_package = "vastlex/plugin/actions/protobuf";
+
+message EventAction {
+  enum id {
+    AddPlayer = 0;
+    RemovePlayer = 1;
+    UpdateMotd = 2;
+  }
+  id eventId = 1;
+  bytes data = 2;
+}

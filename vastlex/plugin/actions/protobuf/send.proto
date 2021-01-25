@@ -1,0 +1,10 @@
+syntax = "proto3";
+package protobuf;
+
+option go_package = "vastlex/plugin/actions/protobuf";
+
+message SendAction {
+  string xuid = 1;
+  string ip = 2;
+  int32 port = 3;
+}

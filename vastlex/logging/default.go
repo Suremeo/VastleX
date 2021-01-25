@@ -39,7 +39,7 @@ type logger struct {
 }
 
 // players is the current player count of the proxy.
-var players = 0
+var players = int64(0)
 
 // message is a custom message that is placed in the title.
 var message = ""
@@ -48,7 +48,7 @@ var message = ""
 var MaxPlayerSuffix = ""
 
 // UpdatePlayerCount updates the player count in the console title.
-func UpdatePlayerCount(count int) {
+func UpdatePlayerCount(count int64) {
 	players = count
 	updateTitle()
 }
@@ -65,14 +65,14 @@ func (l *logger) Title(m string) {
 }
 
 // Info logs an INFO message to the console.
-func (l *logger) Info(message string) {
-	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.HiGreenString("INFO")+color.HiBlackString(" > "), message)))
+func (l *logger) Info(message string, source ...string) {
+	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+sourcesToPrefix(source)+color.HiGreenString("INFO")+color.HiBlackString(" > "), message)))
 }
 
 // Debug logs a DEBUG message to the console only if debug logging is enabled in the proxy configuration.
-func (l *logger) Debug(message string) {
+func (l *logger) Debug(message string, source ...string) {
 	if l.debug {
-		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.YellowString("DEBUG")+color.HiBlackString(" > "), message)))
+		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+sourcesToPrefix(source)+color.YellowString("DEBUG")+color.HiBlackString(" > "), message)))
 	}
 }
 
@@ -82,21 +82,21 @@ func (l *logger) SetDebug(enabled bool) {
 }
 
 // Warn logs a WARN message to the console.
-func (l *logger) Warn(message string) {
-	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.RedString("WARN")+color.HiBlackString(" > "), message)))
+func (l *logger) Warn(message string, source ...string) {
+	_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+sourcesToPrefix(source)+color.RedString("WARN")+color.HiBlackString(" > "), message)))
 }
 
 // Error logs a ERROR message to the console if the error provided is valid.
-func (l *logger) Error(err error) {
+func (l *logger) Error(err error, source ...string) {
 	if err != nil {
-		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.HiRedString("ERROR")+color.HiBlackString(" > "), err.Error())))
+		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+sourcesToPrefix(source)+color.HiRedString("ERROR")+color.HiBlackString(" > "), err.Error())))
 	}
 }
 
 // Fatal logs a FATAL message to the console and exits the program if the error provided is valid.
-func (l *logger) Fatal(err error) {
+func (l *logger) Fatal(err error, source ...string) {
 	if err != nil {
-		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+color.HiRedString("FATAL")+color.HiBlackString(" > "), err.Error())))
+		_, _ = l.diode.Write([]byte(addPrefixToNewLine(getTime()+" "+sourcesToPrefix(source)+color.HiRedString("FATAL")+color.HiBlackString(" > "), err.Error())))
 		time.Sleep(100 * time.Millisecond)
 		os.Exit(0)
 	}
@@ -109,6 +109,16 @@ func addPrefixToNewLine(prefix, body string) string {
 		done = done + prefix + color.WhiteString(line) + "\n"
 	}
 	return done
+}
+
+func sourcesToPrefix(sources []string) string {
+	str := color.HiBlackString("[")
+	if len(sources) == 0 {
+		str += color.HiWhiteString("Main") + color.HiBlackString("] ")
+		return str
+	}
+	str += color.HiWhiteString(strings.Join(sources, "/")) + color.HiBlackString("] ")
+	return str
 }
 
 // getTime returns a formatted verison of the current time.

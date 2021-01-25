@@ -1,17 +1,20 @@
 package vastlex
 
 import (
-	"errors"
 	"fmt"
 	"github.com/VastleLLC/VastleX/vastlex/config"
 	"github.com/VastleLLC/VastleX/vastlex/interfaces"
 	"github.com/VastleLLC/VastleX/vastlex/interfaces/player"
 	log "github.com/VastleLLC/VastleX/vastlex/logging"
 	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft"
-	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/events"
+	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft/minecraftevents"
+	"github.com/VastleLLC/VastleX/vastlex/plugin/actions"
+	"github.com/VastleLLC/VastleX/vastlex/plugin/actions/internalevents"
+	"github.com/VastleLLC/VastleX/vastlex/plugin/manager"
 	"github.com/nakabonne/gosivy/agent"
 	"github.com/sandertv/gophertunnel/minecraft/text"
 	"net/http"
+	"sync"
 )
 
 // VastleX is the main structure for the proxy.
@@ -19,17 +22,18 @@ var VastleX interfaces.VastleX = vastlex
 
 // vastlex is the non interface version of the VastleX variable.
 var vastlex = &Structure{
-	players: map[string]interfaces.Player{},
+	players: &sync.Map{},
 }
 
 // Structure is the structure of VastleX.
 type Structure struct {
 	listener minecraft.Listener
-	players  map[string]interfaces.Player // Will be put to use once events are added.
+	players  *sync.Map // Will be put to use once minecraftevents are added.
 }
 
 // Start starts the proxy.
 func Start() (err error) {
+	config.LoadConfig()
 	log.UpdatePlayerCount(0)
 	if config.Config.Debug.Profiling.PPROF.Enabled {
 		go func() {
@@ -46,24 +50,34 @@ func Start() (err error) {
 		}
 		defer agent.Close()
 	}
+	manager.Init(vastlex)
 	l, err := minecraft.Listen()
 	if err != nil {
 		return err
 	}
 	vastlex.listener = l
-	log.DefaultLogger.Info("VastleX is running on " + fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
+	log.DefaultLogger.Info("VastleX is listening on " + fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
+	close(manager.Ready)
 	for {
 		conn := vastlex.listener.Accept()
 		go func() {
 			p := player.New(conn)
-			log.DefaultLogger.Info(conn.Identity().DisplayName + " logged in.")
-			vastlex.players[conn.Identity().XUID] = p
-			p.HandleEvent(&events.Close{}, func() {
-				delete(vastlex.players, conn.Identity().XUID)
-				log.UpdatePlayerCount(len(vastlex.players))
-				log.DefaultLogger.Warn(conn.Identity().DisplayName + " logged out.")
+			vastlex.players.Store(conn.Identity().XUID, p)
+			if manager.HandleAddPlayer != nil {
+				go manager.HandleAddPlayer(p)
+			}
+			p.HandleEvent(&minecraftevents.Close{}, func() {
+				vastlex.players.Delete(conn.Identity().XUID)
+				if manager.HandleRemovePlayer != nil {
+					go manager.HandleRemovePlayer(conn.Identity().XUID)
+				}
+				manager.WriteAll(actions.Event{}.New().Encode(&internalevents.RemovePlayer{XUID: p.Identity().XUID}))
+				log.UpdatePlayerCount(int64(vastlex.listener.PlayerCount()))
+				//log.DefaultLogger.Warn(conn.Identity().DisplayName + " logged out.")
 			})
-			log.UpdatePlayerCount(len(vastlex.players))
+			log.UpdatePlayerCount(int64(vastlex.listener.PlayerCount()))
+			//log.DefaultLogger.Info(conn.Identity().DisplayName + " logged in.")
+			manager.WriteAll(actions.Event{}.New().Encode(&internalevents.AddPlayer{IdentityData: p.Identity()}))
 			if config.Config.Lobby.Enabled {
 				err = p.Send(config.Config.Lobby.Host, config.Config.Lobby.Port)
 				if err != nil {
@@ -73,6 +87,10 @@ func Start() (err error) {
 			}
 		}()
 	}
+}
+
+func (vastlex *Structure) Count() int {
+	return vastlex.listener.PlayerCount()
 }
 
 // ...
@@ -91,15 +109,16 @@ func (vastlex *Structure) SetMotd(motd string) {
 }
 
 // ...
-func (vastlex *Structure) Players() map[string]interfaces.Player {
+func (vastlex *Structure) Players() *sync.Map {
 	return vastlex.players
 }
 
 // ...
-func (vastlex *Structure) GetPlayer(username string) (interfaces.Player, error) {
-	if vastlex.players[username] != nil {
-		return vastlex.players[username], nil
-	} else {
-		return nil, errors.New("player not found")
+func (vastlex *Structure) GetPlayer(xuid string) (interfaces.Player, bool) {
+	p, ok := vastlex.players.Load(xuid)
+	if !ok {
+		return nil, ok
 	}
+	pl, ok := p.(interfaces.Player)
+	return pl, ok
 }

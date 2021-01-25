@@ -10,21 +10,23 @@ import (
 
 // The majority of the code in this file was from https://github.com/Sandertv/gophertunnel/blob/master/minecraft/packet.go and has been edited to fit our uses.
 
-// PacketPool is the pool of registered packets.
-var Packets = func() packet.Pool {
+func init() {
 	packet.Register(custompackets.IDVastleXTransfer, func() packet.Packet { return &custompackets.VastleXTransfer{} })
-	return packet.NewPool()
-}()
+	packet.Register(packet.IDCraftingData, func() packet.Packet { return &custompackets.CraftingData{} })
+	//packet.Register(packet.IDSetScore, func() packet.Packet { return &custompackets.NoParse{Id: packet.IDSetScore} })
+	//packet.Register(packet.IDAddItemActor, func() packet.Packet { return &custompackets.AddItemActor{} })
+}
 
 // packetData holds the data of a Minecraft packet.
 type packetData struct {
 	h       *packet.Header
 	full    []byte
 	payload *bytes.Buffer
+	c       *Connection
 }
 
 // parseData parses the packet data slice passed into a packetData struct.
-func parseData(data []byte) (*packetData, error) {
+func parseData(data []byte, c *Connection) (*packetData, error) {
 	buf := bytes.NewBuffer(data)
 	header := &packet.Header{}
 	if err := header.Read(buf); err != nil {
@@ -32,19 +34,19 @@ func parseData(data []byte) (*packetData, error) {
 		// we return to reading a new packet.
 		return nil, fmt.Errorf("error reading packet header: %v", err)
 	}
-	return &packetData{h: header, full: data, payload: buf}, nil
+	return &packetData{c: c, h: header, full: data, payload: buf}, nil
 }
 
 // decode decodes the packet payload held in the packetData and returns the packet.Packet decoded.
 func (p *packetData) decode() (pk packet.Packet, err error) {
-	// Attempt to fetch the packet with the right packet ID from the pool.
-	pk, ok := Packets[p.h.PacketID]
+	// Attempt to fetch the packet with the right packet ID from the Pool
+	pk, ok := p.c.Pool[p.h.PacketID]
 	if !ok {
 		// No packet with the ID. This may be a custom packet of some sorts.
 		pk = &packet.Unknown{PacketID: p.h.PacketID}
 	}
 
-	r := protocol.NewReader(p.payload)
+	r := protocol.NewReader(p.payload, 0)
 	defer func() {
 		if recoveredErr := recover(); recoveredErr != nil {
 			err = fmt.Errorf("%T: %w", pk, recoveredErr.(error))

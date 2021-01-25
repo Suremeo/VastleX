@@ -1,0 +1,8 @@
+syntax = "proto3";
+package protobuf;
+
+option go_package = "vastlex/plugin/actions/protobuf";
+
+message InfoAction {
+  bytes config = 1;
+}

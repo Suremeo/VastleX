@@ -7,6 +7,23 @@ type Translater interface {
 	Translate(pk packet.Packet, oldeid, neweid, olduid, newuid int64)
 }
 
+func translateEid(current uint64, one int64, two int64) uint64 {
+	if current == uint64(one) {
+		return uint64(two)
+	} else if current == uint64(two) {
+		return uint64(one)
+	}
+	return current
+}
+func translateUid(current int64, one int64, two int64) int64 {
+	if current == int64(one) {
+		return int64(two)
+	} else if current == int64(two) {
+		return int64(one)
+	}
+	return current
+}
+
 // Pool is the pool of translaters.
 var Pool = map[uint32]func() Translater{
 	packet.IDLogin:                      func() Translater { return &Login{} },
@@ -33,19 +50,19 @@ var Pool = map[uint32]func() Translater{
 	packet.IDAddPainting:       func() Translater { return &AddPainting{} },
 	packet.IDTickSync:          func() Translater { return &TickSync{} },
 	// ---
-	packet.IDLevelEvent:                  func() Translater { return &LevelEvent{} },
-	packet.IDBlockEvent:                  func() Translater { return &BlockEvent{} },
-	packet.IDActorEvent:                  func() Translater { return &ActorEvent{} },
-	packet.IDMobEffect:                   func() Translater { return &MobEffect{} },
-	packet.IDUpdateAttributes:            func() Translater { return &UpdateAttributes{} },
-	packet.IDInventoryTransaction:        func() Translater { return &InventoryTransaction{} },
-	packet.IDMobEquipment:                func() Translater { return &MobEquipment{} },
-	packet.IDMobArmourEquipment:          func() Translater { return &MobArmourEquipment{} },
-	packet.IDInteract:                    func() Translater { return &Interact{} },
-	packet.IDBlockPickRequest:            func() Translater { return &BlockPickRequest{} },
-	packet.IDActorPickRequest:            func() Translater { return &ActorPickRequest{} },
-	packet.IDPlayerAction:                func() Translater { return &PlayerAction{} },
-	packet.IDActorFall:                   func() Translater { return &ActorFall{} },
+	packet.IDLevelEvent:           func() Translater { return &LevelEvent{} },
+	packet.IDBlockEvent:           func() Translater { return &BlockEvent{} },
+	packet.IDActorEvent:           func() Translater { return &ActorEvent{} },
+	packet.IDMobEffect:            func() Translater { return &MobEffect{} },
+	packet.IDUpdateAttributes:     func() Translater { return &UpdateAttributes{} },
+	packet.IDInventoryTransaction: func() Translater { return &InventoryTransaction{} },
+	packet.IDMobEquipment:         func() Translater { return &MobEquipment{} },
+	packet.IDMobArmourEquipment:   func() Translater { return &MobArmourEquipment{} },
+	packet.IDInteract:             func() Translater { return &Interact{} },
+	packet.IDBlockPickRequest:     func() Translater { return &BlockPickRequest{} },
+	packet.IDActorPickRequest:     func() Translater { return &ActorPickRequest{} },
+	packet.IDPlayerAction:         func() Translater { return &PlayerAction{} },
+	// ---
 	packet.IDHurtArmour:                  func() Translater { return &HurtArmour{} },
 	packet.IDSetActorData:                func() Translater { return &SetActorData{} },
 	packet.IDSetActorMotion:              func() Translater { return &SetActorMotion{} },
@@ -134,14 +151,14 @@ var Pool = map[uint32]func() Translater{
 	packet.IDLevelEventGeneric:           func() Translater { return &LevelEventGeneric{} },
 	packet.IDLecternUpdate:               func() Translater { return &LecternUpdate{} },
 	// ---
-	packet.IDAddEntity:                         func() Translater { return &AddEntity{} },
-	packet.IDRemoveEntity:                      func() Translater { return &RemoveEntity{} },
-	packet.IDClientCacheStatus:                 func() Translater { return &ClientCacheStatus{} },
-	packet.IDOnScreenTextureAnimation:          func() Translater { return &OnScreenTextureAnimation{} },
-	packet.IDMapCreateLockedCopy:               func() Translater { return &MapCreateLockedCopy{} },
-	packet.IDStructureTemplateDataRequest:      func() Translater { return &StructureTemplateDataResponse{} },
-	packet.IDStructureTemplateDataResponse:     func() Translater { return &StructureTemplateDataResponse{} },
-	packet.IDUpdateBlockProperties:             func() Translater { return &UpdateBlockProperties{} },
+	packet.IDAddEntity:                     func() Translater { return &AddEntity{} },
+	packet.IDRemoveEntity:                  func() Translater { return &RemoveEntity{} },
+	packet.IDClientCacheStatus:             func() Translater { return &ClientCacheStatus{} },
+	packet.IDOnScreenTextureAnimation:      func() Translater { return &OnScreenTextureAnimation{} },
+	packet.IDMapCreateLockedCopy:           func() Translater { return &MapCreateLockedCopy{} },
+	packet.IDStructureTemplateDataRequest:  func() Translater { return &StructureTemplateDataResponse{} },
+	packet.IDStructureTemplateDataResponse: func() Translater { return &StructureTemplateDataResponse{} },
+	// ---
 	packet.IDClientCacheBlobStatus:             func() Translater { return &ClientCacheBlobStatus{} },
 	packet.IDClientCacheMissResponse:           func() Translater { return &ClientCacheMissResponse{} },
 	packet.IDEducationSettings:                 func() Translater { return &EducationSettings{} },
@@ -164,4 +181,11 @@ var Pool = map[uint32]func() Translater{
 	packet.IDPositionTrackingDBClientRequest:   func() Translater { return &PositionTrackingDBClientRequest{} },
 	packet.IDDebugInfo:                         func() Translater { return &DebugInfo{} },
 	packet.IDPacketViolationWarning:            func() Translater { return &PacketViolationWarning{} },
+	packet.IDMotionPredictionHints:             func() Translater { return &MotionPredictionHints{} },
+	packet.IDAnimateEntity:                     func() Translater { return &AnimateEntity{} },
+	packet.IDCameraShake:                       func() Translater { return &CameraShake{} },
+	packet.IDPlayerFog:                         func() Translater { return &PlayerFog{} },
+	packet.IDCorrectPlayerMovePrediction:       func() Translater { return &CorrectPlayerMovePrediction{} },
+	packet.IDItemComponent:                     func() Translater { return &ItemComponent{} },
+	packet.IDFilterText:                        func() Translater { return &FilterText{} },
 }

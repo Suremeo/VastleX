@@ -3,7 +3,6 @@ package interfaces
 import (
 	"github.com/VastleLLC/VastleX/vastlex/config"
 	"github.com/VastleLLC/VastleX/vastlex/networking/minecraft"
-	"github.com/VastleLLC/VastleX/vastlex/translators/blocks"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/login"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
@@ -18,7 +17,6 @@ type InternalPlayer interface {
 	SetDialer(dialer Dialer)
 	State() State
 	SetState(state State)
-	Blocks() *blocks.Store
 	Kick(...string)
 	Message(string) error
 	KickOrFallback(string)
@@ -32,12 +30,16 @@ const (
 	StateWaitingForFirstServer = State(iota)
 	StateWaitingForNewServer
 	StateConnected
+	StateDisconnected
 )
 
 // Player is a player connected to the proxy.
 type Player interface {
 	// Identity returns the IdentityData of the player.
 	Identity() login.IdentityData
+
+	// Client returns the Client of the player
+	Client() login.ClientData
 
 	// Send transfers the player to a server.
 	Send(ip string, port int) error
@@ -50,4 +52,7 @@ type Player interface {
 
 	// WritePacket writes a packet directly to the player.
 	WritePacket(packet packet.Packet) error
+
+	// State returns the state of the player.
+	State() State
 }

@@ -1,7 +1,6 @@
 package dialer
 
 import (
-	"github.com/VastleLLC/VastleX/vastlex/config"
 	"github.com/VastleLLC/VastleX/vastlex/interfaces"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
 )
@@ -22,14 +21,6 @@ func handleStartGame(dialer *Dialer, pak packet.Packet) {
 			Yaw:             pk.Yaw,
 			HeadYaw:         pk.Yaw,
 		})
-		_ = dialer.WritePacket(&packet.SetLocalPlayerAsInitialised{EntityRuntimeID: pk.EntityRuntimeID})
 		_ = dialer.WritePacket(&packet.RequestChunkRadius{ChunkRadius: dialer.player.ChunkRadius()})
-	} else {
-		if config.Config.Debug.BlockTranslating {
-			dialer.player.Blocks().Import(pk.Blocks)
-		}
-	}
-	if config.Config.Debug.BlockTranslating {
-		dialer.Blocks().Import(pk.Blocks)
 	}
 }

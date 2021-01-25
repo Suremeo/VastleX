@@ -16,7 +16,6 @@ minecraft: # Minecraft contains settings related to the Minecraft aspect of the 
   maxplayers: 0
 debug: # Debug contains features designed for debugging the proxy.
   logging: false # If set to true debug messages will be sent to the console.
-  blocktranslating: true # Disable this if you are using all dragonfly servers (It is required for pretty much every other server software).
   profiling: # Profiling contains the different profilers you can use to debug the memory / cpu usage of the proxy.
     pprof: # https://github.com/google/pprof
       enabled: false
