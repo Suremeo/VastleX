@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"github.com/VastleLLC/VastleX/vastlex/interfaces"
 	log "github.com/VastleLLC/VastleX/vastlex/logging"
 	"github.com/VastleLLC/VastleX/vastlex/plugin/actions"
 	"github.com/VastleLLC/VastleX/vastlex/plugin/actions/protobuf"
@@ -10,6 +11,15 @@ import (
 
 type player struct {
 	identity login.IdentityData
+}
+
+func (p *player) Client() login.ClientData {
+	return login.ClientData{}
+}
+
+func (p *player) State() interfaces.State {
+	//panic("implement me")
+	return 0
 }
 
 func (p *player) Identity() login.IdentityData {

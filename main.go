@@ -8,5 +8,4 @@ import (
 // main starts the proxy.
 func main() {
 	log.DefaultLogger.Fatal(vastlex.Start())
-
 }

@@ -11,4 +11,5 @@ func init() {
 	var originalMode uint32
 	_ = windows.GetConsoleMode(stdout, &originalMode)
 	_ = windows.SetConsoleMode(stdout, originalMode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+	updateTitle()
 }

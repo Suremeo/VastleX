@@ -12,7 +12,6 @@ fallback: # Fallback is the server they get transferred to when they get kicked 
 minecraft: # Minecraft contains settings related to the Minecraft aspect of the proxy.
   auth: true
   motd: §l§cVastle§r§r§l§fX§r§r
-  showversion: false
   maxplayers: 0
 debug: # Debug contains features designed for debugging the proxy.
   logging: false # If set to true debug messages will be sent to the console.

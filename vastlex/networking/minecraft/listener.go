@@ -87,13 +87,9 @@ func (l *listener) updatePongData() {
 	if max == 0 {
 		max = int(current + 1)
 	}
-	var ver string
-	if config.Config.Minecraft.ShowVersion {
-		ver = protocol.CurrentVersion
-	}
 
 	l.net.PongData([]byte(fmt.Sprintf("MCPE;%v;%v;%v;%v;%v;%v;Minecraft Server;%v;%v;%v;%v;",
-		l.Motd(), protocol.CurrentProtocol, ver, current, max, l.net.ID(),
+		l.Motd(), protocol.CurrentProtocol, protocol.CurrentVersion, current, max, l.net.ID(),
 		"Creative", 1, l.net.Addr().(*net.UDPAddr).Port, l.net.Addr().(*net.UDPAddr).Port,
 	)))
 }

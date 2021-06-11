@@ -13,10 +13,12 @@ func handleWritePacket(plugin *Plugin, a actions.Action) {
 	action := a.(*actions.WritePacket)
 	p, ok := vastlex.GetPlayer(action.Xuid)
 	if ok {
-		pk, ok := p.(*player.Player).Player.(*minecraft.Connection).Pool[uint32(action.Id)]
+		pkf, ok := p.(*player.Player).Player.(*minecraft.Connection).Pool[uint32(action.Id)]
+		var pk packet.Packet
 		if !ok {
-			// No packet with the ID. This may be a custom packet of some sorts.
 			pk = &packet.Unknown{PacketID: uint32(action.Id)}
+		} else {
+			pk = pkf()
 		}
 		err := json.Unmarshal(action.Data, pk)
 		if err == nil {

@@ -148,7 +148,6 @@ func (connection *Connection) ReadPacket() (packet.Packet, error) {
 			for _, item := range pk.(*packet.StartGame).Items {
 				if item.Name == "minecraft:shield" {
 					connection.shieldID.Store(int32(item.RuntimeID))
-					connection.Pool[packet.IDStartGame] = &packet.StartGame{}
 				}
 			}
 		}

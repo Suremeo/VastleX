@@ -40,11 +40,13 @@ func parseData(data []byte, c *Connection) (*packetData, error) {
 // decode decodes the packet payload held in the packetData and returns the packet.Packet decoded.
 func (p *packetData) decode() (pk packet.Packet, err error) {
 	// Attempt to fetch the packet with the right packet ID from the Pool
-	pk, ok := p.c.Pool[p.h.PacketID]
+	pkf, ok := p.c.Pool[p.h.PacketID]
 	if !ok {
 		// No packet with the ID. This may be a custom packet of some sorts.
 		pk = &packet.Unknown{PacketID: p.h.PacketID}
 	}
+	pk = pkf()
+
 
 	r := protocol.NewReader(p.payload, 0)
 	defer func() {

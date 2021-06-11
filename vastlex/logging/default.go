@@ -32,6 +32,21 @@ var DefaultLogger Logger = &logger{
 	}),
 }
 
+func init() {
+	t := time.NewTicker(1*time.Second)
+	var oldPlayers = players
+	var oldMessage = message
+	go func() {
+		for range t.C {
+			if players != oldPlayers || oldMessage != message {
+				oldPlayers = players
+				oldMessage = message
+				updateTitle()
+			}
+		}
+	}()
+}
+
 // logger is an internal type to represent the stderr logger.
 type logger struct {
 	debug bool
@@ -39,7 +54,7 @@ type logger struct {
 }
 
 // players is the current player count of the proxy.
-var players = int64(0)
+var players int64 = 0
 
 // message is a custom message that is placed in the title.
 var message = ""
@@ -50,7 +65,6 @@ var MaxPlayerSuffix = ""
 // UpdatePlayerCount updates the player count in the console title.
 func UpdatePlayerCount(count int64) {
 	players = count
-	updateTitle()
 }
 
 // updateTitle updates the title with the variables defines above.

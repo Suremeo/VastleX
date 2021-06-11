@@ -25,4 +25,3 @@ Below you can find our list of official plugins to add **VastleX** features to s
 #### How to get started / questions?
 
 Try using our [wiki](https://github.com/VastleLLC/VastleX/wiki)
-

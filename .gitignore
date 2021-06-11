@@ -4,5 +4,6 @@
 *.exe~
 *.~
 *.pb.go
+build.bat
 maintest.go
 VastleX-Linux

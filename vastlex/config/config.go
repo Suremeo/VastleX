@@ -22,7 +22,6 @@ type Structure struct {
 	Minecraft struct {
 		Auth        bool
 		Motd        string
-		ShowVersion bool
 		MaxPlayers  int
 	}
 	Fallback struct {
@@ -101,12 +100,10 @@ func DefaultConfig() Structure {
 		Minecraft: struct {
 			Auth        bool
 			Motd        string
-			ShowVersion bool
 			MaxPlayers  int
 		}{
 			Auth:        true,
 			Motd:        text.Colourf("<red>Vastle</red><white><bold>X</bold></white>"),
-			ShowVersion: false,
 			MaxPlayers:  0,
 		},
 		Fallback: struct {

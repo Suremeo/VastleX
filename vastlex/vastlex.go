@@ -50,14 +50,12 @@ func Start() (err error) {
 		}
 		defer agent.Close()
 	}
-	manager.Init(vastlex)
 	l, err := minecraft.Listen()
 	if err != nil {
 		return err
 	}
 	vastlex.listener = l
 	log.DefaultLogger.Info("VastleX is listening on " + fmt.Sprintf("%v:%v", config.Config.Listener.Host, config.Config.Listener.Port))
-	close(manager.Ready)
 	for {
 		conn := vastlex.listener.Accept()
 		go func() {
